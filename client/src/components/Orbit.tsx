@@ -32,11 +32,6 @@ function countLabel(c: ChannelSummary): string {
   return parts.join(' · ')
 }
 
-/** A font size that keeps `label` inside the center disc, down to a floor. */
-function fit(label: string, max: number, width: number): number {
-  return Math.max(10, Math.min(max, Math.floor((width / Math.max(1, label.length)) * 1.9)))
-}
-
 export function Orbit({ wiki, pages, machines, channels, emptyNote }: { wiki: string; pages: number; machines: Machine[]; channels: ChannelSummary[]; emptyNote?: string }) {
   const ms = machines.length ? machines : [{ name: 'this machine', thisMachine: true, capabilities: [], lastSeen: null, state: 'idle', running: 0, leases: 0 } as Machine]
   const machinePos = new Map<string, Pt>()
@@ -81,13 +76,14 @@ export function Orbit({ wiki, pages, machines, channels, emptyNote }: { wiki: st
         if (!p || !m) return null
         const live = c.state === 'running'
         const blocked = c.state === 'blocked' || c.state === 'failed'
+        const seenOnly = !c.watched
         const hue = CH(c.id)
         // Counts sit nearer the channel than the machine, clear of the machine's ring.
         const mid = { x: m.x + (p.x - m.x) * 0.62, y: m.y + (p.y - m.y) * 0.62 }
         const labelAnchor = p.x < CX - 20 ? 'end' : p.x > CX + 20 ? 'start' : 'middle'
         return (
           <g key={c.id}>
-            <line x1={m.x} y1={m.y} x2={p.x} y2={p.y} stroke={blocked ? 'var(--color-warn)' : hue} strokeWidth={1.5} strokeDasharray={blocked || c.state === 'paused' ? '3 5' : undefined} opacity={c.state === 'idle' && !Object.values(c.counts).some(Boolean) ? 0.35 : 0.8} />
+            <line x1={m.x} y1={m.y} x2={p.x} y2={p.y} stroke={blocked ? 'var(--color-warn)' : hue} strokeWidth={1.5} strokeDasharray={blocked || c.state === 'paused' || seenOnly ? '3 5' : undefined} opacity={c.state === 'idle' && !Object.values(c.counts).some(Boolean) ? 0.35 : 0.8} />
             {live && (
               <>
                 <circle r={3.5} fill="var(--color-live)">
@@ -101,7 +97,7 @@ export function Orbit({ wiki, pages, machines, channels, emptyNote }: { wiki: st
             <text x={mid.x} y={mid.y - 6} textAnchor="middle" fontSize={11} fill={blocked ? 'var(--color-warn-ink)' : 'var(--color-ink-2)'} style={{ paintOrder: 'stroke', stroke: 'var(--color-card)', strokeWidth: 4 }}>
               {countLabel(c)}
             </text>
-            <circle cx={p.x} cy={p.y} r={15} fill={blocked ? 'var(--color-warn-bg)' : 'var(--color-card)'} stroke={blocked ? 'var(--color-warn)' : hue} strokeWidth={2} strokeDasharray={blocked ? '3 3' : undefined} />
+            <circle cx={p.x} cy={p.y} r={15} fill={blocked ? 'var(--color-warn-bg)' : 'var(--color-card)'} stroke={blocked ? 'var(--color-warn)' : hue} strokeWidth={seenOnly ? 1.5 : 2.5} strokeDasharray={blocked || seenOnly ? '3 3' : undefined} />
             <text x={p.x} y={p.y < CY ? p.y - 22 : p.y + 34} textAnchor={labelAnchor} fontSize={13} fill="var(--color-ink)">
               {c.name}
             </text>
@@ -133,15 +129,37 @@ export function Orbit({ wiki, pages, machines, channels, emptyNote }: { wiki: st
         </text>
       )}
 
-      <g textAnchor="middle">
-        <circle cx={CX} cy={CY} r={46} fill="var(--color-ink)" />
-        <text x={CX} y={CY - 3} fontSize={fit(wiki, 17, 84)} fill="var(--color-paper)" style={{ fontFamily: 'var(--font-display)' }}>
-          {wiki}
-        </text>
-        <text x={CX} y={CY + 15} fontSize={11} fill="var(--color-paper)" opacity={0.7}>
-          {pages ? `+${pages} today` : 'quiet today'}
-        </text>
-      </g>
+      {/* The wiki, as a pill that sizes to its name: HTML inside the SVG so long
+          names wrap instead of spilling out of a fixed disc. */}
+      <foreignObject x={CX - 140} y={CY - 60} width={280} height={120} style={{ overflow: 'visible' }}>
+        <div
+          {...{ xmlns: 'http://www.w3.org/1999/xhtml' }}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, width: 280, height: 120 }}
+        >
+          <div
+            style={{
+              maxWidth: 268,
+              padding: '10px 20px',
+              borderRadius: 999,
+              background: 'var(--color-ink)',
+              color: 'var(--color-paper)',
+              fontFamily: 'var(--font-display)',
+              fontSize: 20,
+              lineHeight: 1.15,
+              fontWeight: 600,
+              textAlign: 'center',
+              textWrap: 'balance',
+              overflowWrap: 'anywhere',
+              boxShadow: '0 0 0 6px var(--color-card)',
+            }}
+          >
+            {wiki}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-ink-2)', background: 'var(--color-card)', padding: '2px 8px', borderRadius: 999 }}>
+            {pages ? `+${pages} today` : 'quiet today'}
+          </div>
+        </div>
+      </foreignObject>
     </svg>
   )
 }

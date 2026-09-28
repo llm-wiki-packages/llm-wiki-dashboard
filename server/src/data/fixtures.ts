@@ -41,15 +41,15 @@ const total = (c: Counts) => Object.values(c).reduce((a, b) => a + b, 0)
 const THIS_MACHINE = 'jmac23-3-local'
 
 const channels: ChannelSummary[] = [
-  { id: 'gmail-clients', name: 'Gmail · clients', kind: 'mailbox', host: 'mail.google.com', job: 'gmail-clients', area: 'Customers', machine: THIS_MACHINE, every: '30m', state: 'running', stateNote: 'enriching 4 threads', counts: counts({ new: 6, updated: 2 }) },
-  { id: 'notion-crm', name: 'Notion · CRM', kind: 'database', host: 'notion.so', job: 'notion-crm', area: 'Customers', machine: THIS_MACHINE, every: '2h', state: 'parked', stateNote: 'rate limited · retry in 18m', counts: counts({ updated: 2 }) },
-  { id: 'youtube-saas-growth', name: 'YouTube · SaaS Growth', kind: 'channel', host: 'youtube.com', job: 'youtube-saas-growth', area: 'Product learning', machine: 'studio-mini', every: '6h', state: 'running', stateNote: 'transcribing 11 of 20', counts: counts({ new: 10, waiting: 10 }) },
-  { id: 'somecourse', name: 'somecourse.com · Pricing Strategy', kind: 'course', host: 'somecourse.com', job: 'somecourse-pricing', area: 'Product learning', machine: 'hetzner-01', every: '1d', state: 'idle', counts: counts({ new: 3, updated: 1, distilled: 2 }) },
-  { id: 'rival-site', name: 'Site watch · rival.com', kind: 'site', host: 'rival.com', job: 'rival-pricing', area: 'Competitors', machine: 'hetzner-01', every: '1d', state: 'idle', counts: counts({ updated: 2 }) },
-  { id: 'rss-industry', name: 'RSS · industry feed', kind: 'feed', host: 'feeds.example.com', job: 'rss-industry', area: 'Industry', machine: 'hetzner-01', every: '3h', state: 'idle', counts: counts({ new: 4, distilled: 1 }) },
-  { id: 'hubspot-pages', name: 'HubSpot · pages', kind: 'site', host: 'app.hubspot.com', job: 'hubspot-pages', area: 'Sales enablement', machine: THIS_MACHINE, every: '1d', state: 'blocked', stateNote: 'no credential hubspot-api on this machine', counts: counts({}) },
-  { id: 'calendar', name: 'Calendar', kind: 'calendar', host: 'calendar.google.com', job: 'calendar', area: 'Customers', machine: 'studio-mini', every: '1h', state: 'idle', stateNote: 'quiet today', counts: counts({}) },
-  { id: 'distilled', name: 'Distilled by the wiki', kind: 'wiki', area: 'Sales enablement', state: 'idle', counts: counts({ distilled: 8 }) },
+  { id: 'gmail-clients', name: 'Gmail · clients', kind: 'mailbox', host: 'mail.google.com', job: 'gmail-clients', area: 'Customers', machine: THIS_MACHINE, every: '30m', watched: true, state: 'running', stateNote: 'enriching 4 threads', counts: counts({ new: 6, updated: 2 }) },
+  { id: 'notion-crm', name: 'Notion · CRM', kind: 'database', host: 'notion.so', job: 'notion-crm', area: 'Customers', machine: THIS_MACHINE, every: '2h', watched: true, state: 'parked', stateNote: 'rate limited · retry in 18m', counts: counts({ updated: 2 }) },
+  { id: 'youtube-saas-growth', name: 'YouTube · SaaS Growth', kind: 'channel', host: 'youtube.com', job: 'youtube-saas-growth', area: 'Product learning', machine: 'studio-mini', every: '6h', watched: true, state: 'running', stateNote: 'transcribing 11 of 20', counts: counts({ new: 10, waiting: 10 }) },
+  { id: 'somecourse', name: 'somecourse.com · Pricing Strategy', kind: 'course', host: 'somecourse.com', job: 'somecourse-pricing', area: 'Product learning', machine: 'hetzner-01', every: '1d', watched: true, state: 'idle', counts: counts({ new: 3, updated: 1, distilled: 2 }) },
+  { id: 'rival-site', name: 'Site watch · rival.com', kind: 'site', host: 'rival.com', job: 'rival-pricing', area: 'Competitors', machine: 'hetzner-01', every: '1d', watched: true, state: 'idle', counts: counts({ updated: 2 }) },
+  { id: 'rss-industry', name: 'RSS · industry feed', kind: 'feed', host: 'feeds.example.com', job: 'rss-industry', area: 'Industry', machine: 'hetzner-01', every: '3h', watched: true, state: 'idle', counts: counts({ new: 4, distilled: 1 }) },
+  { id: 'hubspot-pages', name: 'HubSpot · pages', kind: 'site', host: 'app.hubspot.com', job: 'hubspot-pages', area: 'Sales enablement', machine: THIS_MACHINE, every: '1d', watched: true, state: 'blocked', stateNote: 'no credential hubspot-api on this machine', counts: counts({}) },
+  { id: 'calendar', name: 'Calendar', kind: 'calendar', host: 'calendar.google.com', job: 'calendar', area: 'Customers', machine: 'studio-mini', every: '1h', watched: true, state: 'idle', stateNote: 'quiet today', counts: counts({}) },
+  { id: 'distilled', name: 'Distilled by the wiki', kind: 'wiki', area: 'Sales enablement', watched: false, state: 'idle', counts: counts({ distilled: 8 }) },
 ]
 
 const areaOrder = ['Customers', 'Product learning', 'Competitors', 'Industry', 'Sales enablement']

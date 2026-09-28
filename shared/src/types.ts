@@ -78,6 +78,8 @@ export interface ChannelSummary {
   area?: string
   machine?: string
   every?: string
+  /** A job watches this source; false when it is only seen through pages. */
+  watched: boolean
   state: 'idle' | 'running' | 'parked' | 'blocked' | 'paused' | 'failed'
   stateNote?: string
   counts: Counts

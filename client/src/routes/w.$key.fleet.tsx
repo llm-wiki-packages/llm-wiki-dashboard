@@ -22,28 +22,51 @@ function Fleet() {
   const machineNoun = cfg.data?.nouns.machine ?? (['machine', 'machines'] as const)
   const channelNoun = cfg.data?.nouns.channel ?? (['channel', 'channels'] as const)
   const active = v.channels.filter((c) => Object.values(c.counts).some(Boolean)).length
+  const rings = v.channels.length
+  const watched = v.channels.filter((c) => c.watched).length
+  const ringsNoun = rings === 1 ? channelNoun[0] : channelNoun[1]
 
   return (
     <div className="flex flex-col gap-4 pt-4">
       <div className="flex flex-col gap-1.5">
         <h1 className="text-[40px] leading-[1.1]">Your fleet today</h1>
         <p className="text-base text-ink-2">
-          {v.machines.length} {v.machines.length === 1 ? machineNoun[0] : machineNoun[1]} · <strong className="font-semibold text-ink">{n(pagesToday)} pages</strong> from{' '}
-          <strong className="font-semibold text-ink">{active} {active === 1 ? channelNoun[0] : channelNoun[1]}</strong>
+          {pagesToday === 0 ? (
+            <>
+              No new pages from <strong className="font-semibold text-ink">{rings} {ringsNoun}</strong> today
+            </>
+          ) : (
+            <>
+              <strong className="font-semibold text-ink">{n(pagesToday)} new {pagesToday === 1 ? 'page' : 'pages'}</strong> from{' '}
+              <strong className="font-semibold text-ink">{active} of {rings} {ringsNoun}</strong> today
+            </>
+          )}
+          {` · ${v.machines.length} ${v.machines.length === 1 ? machineNoun[0] : machineNoun[1]}`}
           {working ? ` · ${working} working right now` : ''}
-          {v.health.attention ? ` · ${v.health.attention} ${v.health.attention === 1 ? 'needs' : 'need'} you` : ' · everything on schedule'}.
+          {v.health.attention ? ` · ${v.health.attention} ${v.health.attention === 1 ? 'needs' : 'need'} you` : ''}.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <Card className="overflow-hidden p-2">
+        <Card className="flex flex-col overflow-hidden p-2">
           <Orbit
-            wiki={v.wiki.key}
+            wiki={v.wiki.name}
             pages={pagesToday}
             machines={v.machines}
             channels={v.channels}
             emptyNote={`No ${channelNoun[1]} watched yet, and nothing captured in the last 30 days. Add a watch and it appears here.`}
           />
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 pb-3 pt-1 text-xs text-ink-2">
+            <span className="flex items-center gap-2">
+              <span className="inline-block size-3 rounded-full border-[2.5px] border-ink-3" /> watched by a job · {watched}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="inline-block size-3 rounded-full border-[1.5px] border-dashed border-ink-3" /> seen in pages only · {rings - watched}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="inline-block size-3 rounded-full border-[2px] border-dashed border-warn bg-warn-bg" /> blocked
+            </span>
+          </div>
         </Card>
 
         <div className="flex flex-col gap-4">

@@ -295,6 +295,7 @@ export function liveSource(cli: Runner): Source {
         job: j.slug,
         every: j.every,
         machine: j.holders ? Object.values(j.holders)[0] : undefined,
+        watched: true,
         state: stateOfJob(j, d),
         stateNote: noteOfJob(j, d),
         counts: emptyCounts(),
@@ -312,6 +313,7 @@ export function liveSource(cli: Runner): Source {
           host: p.host,
           job: p.job,
           machine: p.harvested?.machine,
+          watched: false,
           state: 'idle',
           counts: emptyCounts(),
         }
