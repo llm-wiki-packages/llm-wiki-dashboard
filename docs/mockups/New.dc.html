@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>What's new: grouped by area, drilled into pages</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#F6F1E7;font-family:'Instrument Sans',system-ui,sans-serif;color:#1F1E1B}
+a{color:#1F1E1B;text-decoration:none}a:hover{color:#C2542D}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #F6F1E7; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="height: 64px; box-sizing: border-box; padding: 0 40px; display: flex; align-items: center; justify-content: space-between">
+    <div style="display: flex; align-items: center; gap: 28px">
+      <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px">llm-wiki</div>
+      <nav style="display: flex; gap: 22px; font-size: 14px">
+        <a href="Today.dc.html" style="color: #66625A">Today</a>
+        <a href="New.dc.html" style="font-weight: 600; border-bottom: 2px solid #1F1E1B; padding-bottom: 2px">What's new</a>
+        <a href="Fleet.dc.html" style="color: #66625A">Fleet</a>
+        <a href="Briefing.dc.html" style="color: #66625A">Briefings</a>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px">
+      <button style="height: 36px; padding: 0 14px; border: 1px solid rgba(31,30,27,0.14); border-radius: 999px; background: #FFFFFF; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A6E; display: inline-block"></span>acme-sales
+      </button>
+    </div>
+  </div>
+
+  <div style="padding: 16px 40px 0; display: flex; align-items: flex-end; justify-content: space-between">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 40px; font-weight: 400; line-height: 1.1">What's new</h1>
+      <p style="margin: 0; font-size: 16px; color: #66625A">47 pages since 00:00 · 31 new, 12 updated, 4 distilled into the wiki</p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center">
+      <div style="display: flex; border: 1px solid rgba(31,30,27,0.14); border-radius: 999px; overflow: hidden; background: #FFFFFF">
+        <button style="height: 34px; padding: 0 14px; border: 0; background: #1F1E1B; color: #F6F1E7; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 13px; cursor: pointer">Today</button>
+        <button style="height: 34px; padding: 0 14px; border: 0; background: transparent; color: #66625A; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 13px; cursor: pointer">This week</button>
+      </div>
+      <div style="display: flex; border: 1px solid rgba(31,30,27,0.14); border-radius: 999px; overflow: hidden; background: #FFFFFF">
+        <button style="height: 34px; padding: 0 14px; border: 0; background: #1F1E1B; color: #F6F1E7; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 13px; cursor: pointer">By area</button>
+        <button style="height: 34px; padding: 0 14px; border: 0; background: transparent; color: #66625A; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 13px; cursor: pointer">By channel</button>
+        <button style="height: 34px; padding: 0 14px; border: 0; background: transparent; color: #66625A; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 13px; cursor: pointer">By tag</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 20px 40px 32px; display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 24px; min-height: 0">
+
+    <div style="display: flex; flex-direction: column; gap: 8px; min-height: 0">
+      <sc-for list="{{groups}}" as="g" hint-placeholder-count="5">
+        <a href="#area" style="{{g.style}}">
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="{{g.dot}}"></span>
+              <span style="font-size: 16px; font-weight: 600">{{g.name}}</span>
+            </div>
+            <span style="font-size: 13px; color: #66625A">{{g.count}}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; padding-left: 20px">
+            <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="2">
+              <div style="display: flex; justify-content: space-between; font-size: 13px">
+                <span style="color: #1F1E1B">{{r.channel}}</span>
+                <span style="{{r.style}}">{{r.what}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </a>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; min-height: 0">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span style="width: 10px; height: 10px; border-radius: 50%; background: #1baf7a; display: inline-block"></span>
+          <span style="font-size: 18px; font-weight: 600">Product learning</span>
+          <span style="font-size: 14px; color: #66625A">· 23 items today from 2 watches</span>
+        </div>
+        <a href="#search" style="font-size: 13px; color: #66625A">Search within this area</a>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+        <div style="padding: 16px 18px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline">
+            <span style="font-size: 15px; font-weight: 600">YouTube · SaaS Growth</span>
+            <span style="font-size: 12px; color: #66625A">studio-mini · every 6h</span>
+          </div>
+          <div style="display: flex; gap: 2px; height: 10px; border-radius: 5px; overflow: hidden">
+            <span style="flex: 10; background: #1baf7a"></span>
+            <span style="flex: 1; background: #1F7A6E"></span>
+            <span style="flex: 9; background: #E4DDCF"></span>
+          </div>
+          <div style="display: flex; gap: 14px; font-size: 13px; color: #66625A">
+            <span><strong style="color: #1F1E1B; font-weight: 600">20</strong> new videos</span>
+            <span><strong style="color: #1F1E1B; font-weight: 600">10</strong> transcribed</span>
+            <span><strong style="color: #1F1E1B; font-weight: 600">1</strong> in progress</span>
+            <span><strong style="color: #1F1E1B; font-weight: 600">9</strong> waiting</span>
+          </div>
+        </div>
+        <div style="padding: 16px 18px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline">
+            <span style="font-size: 15px; font-weight: 600">somecourse.com · Pricing Strategy</span>
+            <span style="font-size: 12px; color: #66625A">hetzner-01 · daily</span>
+          </div>
+          <div style="display: flex; gap: 2px; height: 10px; border-radius: 5px; overflow: hidden">
+            <span style="flex: 3; background: #1baf7a"></span>
+            <span style="flex: 2; background: #3C8A4E"></span>
+            <span style="flex: 7; background: #E4DDCF"></span>
+          </div>
+          <div style="display: flex; gap: 14px; font-size: 13px; color: #66625A">
+            <span><strong style="color: #1F1E1B; font-weight: 600">3</strong> new lessons</span>
+            <span><strong style="color: #1F1E1B; font-weight: 600">2</strong> distilled into Sales playbook</span>
+            <span><strong style="color: #1F1E1B; font-weight: 600">7</strong> of 12 lessons so far</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; flex-grow: 1; min-height: 0">
+        <div style="display: grid; grid-template-columns: 70px 1fr 200px 90px; gap: 12px; padding: 10px 18px; font-size: 12px; color: #66625A; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(31,30,27,0.08)">
+          <span></span><span>Page</span><span>From</span><span>When</span>
+        </div>
+        <sc-for list="{{pages}}" as="p" hint-placeholder-count="7">
+          <a href="#page" style="display: grid; grid-template-columns: 70px 1fr 200px 90px; gap: 12px; padding: 11px 18px; align-items: center; border-bottom: 1px solid rgba(31,30,27,0.06)">
+            <span style="{{p.badge}}">{{p.kind}}</span>
+            <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+              <span style="font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{p.title}}</span>
+              <span style="font-size: 12px; color: #66625A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{p.sub}}</span>
+            </span>
+            <span style="font-size: 13px; color: #66625A">{{p.from}}</span>
+            <span style="font-size: 13px; color: #66625A">{{p.when}}</span>
+          </a>
+        </sc-for>
+        <div style="margin: 0 18px 14px; padding: 12px 14px; background: #F6F1E7; border-radius: 10px; font-size: 13px; line-height: 1.5; display: flex; flex-direction: column; gap: 4px">
+          <div style="font-size: 12px; color: #66625A">Updated · Lesson 4 — anchoring · what changed</div>
+          <div><span style="background: #FBE0D6; color: #7A2E13; text-decoration: line-through; padding: 0 3px; border-radius: 3px">Anchor on the annual price, then discount monthly.</span> <span style="background: #DDF2E3; color: #1E5A2B; padding: 0 3px; border-radius: 3px">Anchor on the value of the outcome first; the annual price is the second anchor, and monthly is never shown before it.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dot = (c) => `width:10px;height:10px;border-radius:50%;background:${c};display:inline-block`;
+    const card = (sel) => `display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:14px;background:${sel ? '#FFFFFF' : 'transparent'};border:1px solid ${sel ? 'rgba(31,30,27,0.14)' : 'transparent'}`;
+    const hot = 'color:#C2542D;font-weight:600';
+    const calm = 'color:#66625A';
+    const groups = [
+      { name: 'Customers', count: '10', dot: dot('#2a78d6'), style: card(false), rows: [
+        { channel: 'Gmail · clients', what: '6 new · 2 updated', style: hot },
+        { channel: 'Notion · CRM', what: '2 records updated', style: calm } ] },
+      { name: 'Product learning', count: '23', dot: dot('#1baf7a'), style: card(true), rows: [
+        { channel: 'YouTube · SaaS Growth', what: '20 videos · 10 transcribed', style: hot },
+        { channel: 'somecourse.com', what: '3 new lessons', style: hot } ] },
+      { name: 'Competitors', count: '2', dot: dot('#eb6834'), style: card(false), rows: [
+        { channel: 'Site watch · rival.com', what: 'pricing page changed', style: hot } ] },
+      { name: 'Industry', count: '4', dot: dot('#eda100'), style: card(false), rows: [
+        { channel: 'RSS · industry feed', what: '4 new · 1 distilled', style: calm } ] },
+      { name: 'Sales enablement', count: '8', dot: dot('#4a3aa7'), style: card(false), rows: [
+        { channel: 'Distilled by the wiki', what: 'playbook +2 sections', style: calm },
+        { channel: 'HubSpot · pages', what: 'not fetched · needs credential', style: 'color:#8A5A12' } ] },
+    ];
+    const badge = (kind) => {
+      const m = { New: ['#DDF2E3', '#1E5A2B'], Updated: ['#FBEFD9', '#8A5A12'], Waiting: ['#EFEAE0', '#66625A'], Distilled: ['#E3E0F3', '#3B2E80'] }[kind];
+      return `font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;background:${m[0]};color:${m[1]};text-align:center`;
+    };
+    const pages = [
+      { kind: 'New', title: 'Pricing power in a downturn · SaaS Growth ep. 214', sub: 'transcript · 38 min · 3 takeaways extracted', from: 'YouTube · SaaS Growth', when: '19:40' },
+      { kind: 'New', title: 'Why usage caps beat seat limits · ep. 213', sub: 'transcript · 24 min', from: 'YouTube · SaaS Growth', when: '19:12' },
+      { kind: 'Waiting', title: 'Founder Q&A: renewals · ep. 212', sub: 'video captured · transcription queued on studio-mini', from: 'YouTube · SaaS Growth', when: '18:55' },
+      { kind: 'Distilled', title: 'Lesson 6 — packaging for expansion', sub: 'merged into Sales playbook › Packaging', from: 'somecourse.com', when: '16:30' },
+      { kind: 'Updated', title: 'Lesson 4 — anchoring', sub: 'the course revised this lesson; 1 paragraph changed', from: 'somecourse.com', when: '16:28' },
+      { kind: 'New', title: 'Lesson 7 — discount discipline', sub: 'new lesson · 1,900 words', from: 'somecourse.com', when: '16:27' },
+    ].map((p) => ({ ...p, badge: badge(p.kind) }));
+    return { groups, pages };
+  }
+}
+</script>
+</body>
+</html>

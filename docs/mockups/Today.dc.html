@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Today: what's new in acme-sales</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#F6F1E7;font-family:'Instrument Sans',system-ui,sans-serif;color:#1F1E1B}
+a{color:#1F1E1B;text-decoration:none}a:hover{color:#C2542D}
+@keyframes pulse{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+.live{animation:pulse 1.6s ease-in-out infinite}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #F6F1E7; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="height: 64px; box-sizing: border-box; padding: 0 40px; display: flex; align-items: center; justify-content: space-between">
+    <div style="display: flex; align-items: center; gap: 28px">
+      <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px">llm-wiki</div>
+      <nav style="display: flex; gap: 22px; font-size: 14px">
+        <a href="Today.dc.html" style="font-weight: 600; border-bottom: 2px solid #1F1E1B; padding-bottom: 2px">Today</a>
+        <a href="New.dc.html" style="color: #66625A">What's new</a>
+        <a href="Fleet.dc.html" style="color: #66625A">Fleet</a>
+        <a href="Briefing.dc.html" style="color: #66625A">Briefings</a>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px">
+      <button style="height: 36px; padding: 0 14px; border: 1px solid rgba(31,30,27,0.14); border-radius: 999px; background: #FFFFFF; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A6E; display: inline-block"></span>
+        acme-sales
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4l3 3 3-3"/></svg>
+      </button>
+      <span style="font-size: 14px; color: #66625A">Saturday, 27 September</span>
+    </div>
+  </div>
+
+  <div style="padding: 20px 40px 0; display: flex; align-items: flex-end; justify-content: space-between">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 44px; font-weight: 400; line-height: 1.1">Good evening, Joe.</h1>
+      <p style="margin: 0; font-size: 17px; color: #66625A; max-width: 760px">Since this morning your wiki gained <strong style="color: #1F1E1B; font-weight: 600">47 pages</strong> across <strong style="color: #1F1E1B; font-weight: 600">5 areas</strong>. Three things are worth a look, and one channel needs a credential.</p>
+    </div>
+    <div style="display: flex; gap: 8px; font-size: 13px">
+      <span style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10)"><span class="live" style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A6E; display: inline-block"></span>2 agents working now</span>
+      <span style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #FBEFD9; color: #8A5A12">1 needs you</span>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 24px 40px 32px; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 24px; min-height: 0">
+
+    <div style="display: flex; flex-direction: column; gap: 16px; min-height: 0">
+      <div style="display: flex; align-items: baseline; justify-content: space-between">
+        <div style="font-size: 13px; color: #66625A; text-transform: uppercase; letter-spacing: 0.08em">What's new, by area</div>
+        <a href="New.dc.html" style="font-size: 14px; color: #C2542D">See everything new</a>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+        <sc-for list="{{areas}}" as="a" hint-placeholder-count="4">
+          <a href="New.dc.html" style="display: flex; flex-direction: column; gap: 12px; padding: 20px 22px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 16px">
+            <div style="display: flex; align-items: center; justify-content: space-between">
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span style="{{a.dot}}"></span>
+                <span style="font-size: 18px; font-weight: 600">{{a.name}}</span>
+              </div>
+              <span style="{{a.badge}}">{{a.count}}</span>
+            </div>
+            <div style="font-size: 15px; color: #1F1E1B; line-height: 1.45">{{a.headline}}</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px">
+              <sc-for list="{{a.channels}}" as="c" hint-placeholder-count="2">
+                <span style="font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #F6F1E7; color: #66625A">{{c}}</span>
+              </sc-for>
+            </div>
+          </a>
+        </sc-for>
+      </div>
+
+      <a href="Briefing.dc.html" style="display: flex; gap: 20px; padding: 20px 22px; background: #1F1E1B; color: #F6F1E7; border-radius: 16px; align-items: center">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.10); display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#F6F1E7" stroke-width="1.5" aria-hidden="true"><path d="M4 3h9l3 3v11H4z"/><path d="M7 9h6M7 12h6M7 15h4"/></svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1">
+          <div style="font-size: 13px; color: rgba(246,241,231,0.65); text-transform: uppercase; letter-spacing: 0.08em">Morning briefing · 07:02</div>
+          <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px; line-height: 1.25">Two clients asked about Q4 renewal terms; the competitor pricing page changed; 10 videos await transcription.</div>
+        </div>
+        <span style="font-size: 14px; color: rgba(246,241,231,0.8); white-space: nowrap">Read the report →</span>
+      </a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px; min-height: 0">
+      <div style="padding: 18px 20px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <div style="font-size: 13px; color: #66625A; text-transform: uppercase; letter-spacing: 0.08em">Right now</div>
+          <a href="Fleet.dc.html" style="font-size: 13px; color: #C2542D">Fleet</a>
+        </div>
+        <sc-for list="{{now}}" as="n" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 12px">
+            <span style="{{n.dot}}"></span>
+            <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1">
+              <span style="font-size: 14px">{{n.what}}</span>
+              <span style="font-size: 12px; color: #66625A">{{n.who}}</span>
+            </div>
+            <span style="font-size: 12px; color: #66625A; white-space: nowrap">{{n.when}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="padding: 18px 20px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 16px; display: flex; flex-direction: column; gap: 12px; flex-grow: 1">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <div style="font-size: 13px; color: #66625A; text-transform: uppercase; letter-spacing: 0.08em">Today's plan</div>
+          <span style="font-size: 12px; color: #66625A">21:04</span>
+        </div>
+        <div style="display: flex; flex-direction: column">
+          <sc-for list="{{plan}}" as="p" hint-placeholder-count="6">
+            <div style="display: grid; grid-template-columns: 52px 14px 1fr; gap: 10px; align-items: center; padding: 7px 0">
+              <span style="{{p.timeStyle}}">{{p.time}}</span>
+              <span style="{{p.mark}}"></span>
+              <span style="{{p.textStyle}}">{{p.text}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="padding: 14px 20px; background: #FBEFD9; border-radius: 16px; display: flex; align-items: center; gap: 12px">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#8A5A12" stroke-width="1.6" aria-hidden="true"><circle cx="9" cy="9" r="7"/><path d="M9 5.5v4M9 12.2v.3"/></svg>
+        <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1">
+          <span style="font-size: 14px; color: #1F1E1B">HubSpot pages can't be fetched</span>
+          <span style="font-size: 12px; color: #8A5A12">no credential on jmac23-3-local · since Thursday</span>
+        </div>
+        <a href="Fleet.dc.html" style="font-size: 13px; color: #8A5A12; font-weight: 600">Fix</a>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dot = (c) => `width:10px;height:10px;border-radius:50%;background:${c};display:inline-block;flex-shrink:0`;
+    const badge = (hot) => `font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:${hot ? '#C2542D' : '#F6F1E7'};color:${hot ? '#FFFFFF' : '#66625A'};white-space:nowrap`;
+    const areas = [
+      { name: 'Customers', count: '8 new · 2 updated', headline: 'Two client threads raise Q4 renewal terms; Northwind asked for a security questionnaire.', channels: ['Gmail · clients', 'Notion · CRM'], dot: dot('#2a78d6'), badge: badge(true) },
+      { name: 'Product learning', count: '20 videos · 3 pages', headline: '20 new videos from SaaS Growth; 10 transcribed, 10 waiting. 3 new lessons from somecourse.com.', channels: ['YouTube · SaaS Growth', 'somecourse.com'], dot: dot('#1baf7a'), badge: badge(true) },
+      { name: 'Competitors', count: '2 changed', headline: 'Rival Inc. changed its pricing page: Team tier up 12%, new usage cap.', channels: ['Site watch · rival.com'], dot: dot('#eb6834'), badge: badge(true) },
+      { name: 'Industry', count: '4 new', headline: '4 articles from the industry feed; one on procurement cycles was distilled into your Sales playbook.', channels: ['RSS · industry feed'], dot: dot('#eda100'), badge: badge(false) },
+    ];
+    const now = [
+      { what: 'Enriching 4 client threads', who: 'jmac23-3-local · Gmail · clients', when: '42s', dot: `${dot('#1F7A6E')};animation:pulse 1.6s ease-in-out infinite` },
+      { what: 'Transcribing video 11 of 20', who: 'studio-mini · YouTube · SaaS Growth', when: '6m', dot: `${dot('#1F7A6E')};animation:pulse 1.6s ease-in-out infinite` },
+      { what: 'Notion CRM paused, retrying', who: 'jmac23-3-local · rate limited', when: 'in 18m', dot: dot('#B7791F') },
+    ];
+    const t = (c) => `font-size:13px;color:${c};font-variant-numeric:tabular-nums`;
+    const mk = (c, hollow) => `width:10px;height:10px;border-radius:50%;${hollow ? `border:1.5px solid ${c};box-sizing:border-box` : `background:${c}`};display:inline-block`;
+    const plan = [
+      { time: '07:00', text: 'Morning briefing · delivered', timeStyle: t('#8A857B'), mark: mk('#3C8A4E'), textStyle: 'font-size:14px;color:#66625A' },
+      { time: '04:00', text: 'Improve pass · failed, will retry tomorrow', timeStyle: t('#8A857B'), mark: mk('#C2542D'), textStyle: 'font-size:14px;color:#66625A' },
+      { time: 'hourly', text: 'Curate new pages · 22 runs today, next 22:00', timeStyle: t('#1F1E1B'), mark: mk('#1F7A6E'), textStyle: 'font-size:14px;color:#1F1E1B' },
+      { time: '22:00', text: 'Nightly dream · merges today’s pages into the wiki', timeStyle: t('#1F1E1B'), mark: mk('#1F1E1B', true), textStyle: 'font-size:14px;color:#1F1E1B' },
+      { time: '22:00', text: 'Rebuild search index', timeStyle: t('#1F1E1B'), mark: mk('#1F1E1B', true), textStyle: 'font-size:14px;color:#1F1E1B' },
+      { time: '02:00', text: 'Maintenance · doctor + reindex', timeStyle: t('#8A857B'), mark: mk('#8A857B', true), textStyle: 'font-size:14px;color:#66625A' },
+    ];
+    return { areas, now, plan };
+  }
+}
+</script>
+</body>
+</html>

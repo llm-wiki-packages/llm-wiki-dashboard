@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home alternate B: the ledger</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#121210;font-family:'IBM Plex Mono',monospace;color:#F2F1EA}
+a{color:#F2F1EA;text-decoration:none}a:hover{color:#FFFFFF}
+@keyframes pulse{0%{opacity:.25}50%{opacity:1}100%{opacity:.25}}
+.live{animation:pulse 1.6s ease-in-out infinite}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 40px 48px; display: flex; flex-direction: column; gap: 28px; background: #121210; overflow: hidden">
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid rgba(255,255,255,0.18); padding-bottom: 16px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 34px; font-weight: 500; letter-spacing: -0.01em">The machine ledger</div>
+      <div style="font-size: 12px; color: #8B8980">jmac23-3-local · Sat 27 Sep 21:04 · everything this box knows, one row per wiki, one row per machine</div>
+    </div>
+    <div style="display: flex; gap: 40px; text-align: right">
+      <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 30px; line-height: 1">148</span><span style="font-size: 11px; color: #8B8980">pages today</span></div>
+      <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 30px; line-height: 1">312</span><span style="font-size: 11px; color: #8B8980">distilled / wk</span></div>
+      <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 30px; line-height: 1">14</span><span style="font-size: 11px; color: #8B8980">sources</span></div>
+      <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 30px; line-height: 1">91</span><span style="font-size: 11px; color: #8B8980">runs / 24h</span></div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column">
+    <div style="display: grid; grid-template-columns: 24px 180px 90px 90px 90px 1fr 220px 160px; gap: 16px; padding: 0 12px 10px; font-size: 11px; color: #8B8980; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid rgba(255,255,255,0.10)">
+      <span></span><span>wiki</span><span style="text-align: right">pages</span><span style="text-align: right">sources</span><span style="text-align: right">bundles</span><span>machines</span><span>now</span><span>next due</span>
+    </div>
+    <a href="Wiki.dc.html" style="display: grid; grid-template-columns: 24px 180px 90px 90px 90px 1fr 220px 160px; gap: 16px; padding: 16px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: center">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #0ca30c; display: inline-block"></span>
+      <span style="font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 18px">life</span>
+      <span style="text-align: right">1,204</span><span style="text-align: right">5</span><span style="text-align: right">9<span style="color: #8B8980">/10</span></span>
+      <span style="color: #A9A79C">studio-mini</span>
+      <span style="color: #8B8980">idle · hourly ok 14m ago</span>
+      <span>nightly <span style="color: #8B8980">in 56m</span></span>
+    </a>
+    <a href="Wiki.dc.html" style="display: grid; grid-template-columns: 24px 180px 90px 90px 90px 1fr 220px 160px; gap: 16px; padding: 16px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: center; background: rgba(57,135,229,0.06)">
+      <span class="live" style="width: 8px; height: 8px; border-radius: 50%; background: #3987e5; display: inline-block"></span>
+      <span style="font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 18px">acme-sales</span>
+      <span style="text-align: right">3,880</span><span style="text-align: right">7</span><span style="text-align: right">9<span style="color: #8B8980">/10</span></span>
+      <span style="color: #A9A79C">jmac23-3-local · studio-mini · <span style="color: #fab219">hetzner-01 stale</span></span>
+      <span style="color: #3987e5">gmail → enrich · youtube → transcribe</span>
+      <span>hourly <span style="color: #8B8980">in 4m</span></span>
+    </a>
+    <a href="Wiki.dc.html" style="display: grid; grid-template-columns: 24px 180px 90px 90px 90px 1fr 220px 160px; gap: 16px; padding: 16px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: center">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #d03b3b; display: inline-block"></span>
+      <span style="font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 18px">research</span>
+      <span style="text-align: right">640</span><span style="text-align: right">2</span><span style="text-align: right">6<span style="color: #8B8980">/8</span></span>
+      <span style="color: #A9A79C">jmac23-3-local · <span style="color: #fab219">hetzner-01 stale</span></span>
+      <span style="color: #ec835a">search engine unreachable · grep</span>
+      <span>maintenance <span style="color: #8B8980">in 4h 56m</span></span>
+    </a>
+  </div>
+
+  <div style="display: flex; flex-direction: column">
+    <div style="display: grid; grid-template-columns: 24px 180px 1fr 220px 160px 160px; gap: 16px; padding: 0 12px 10px; font-size: 11px; color: #8B8980; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid rgba(255,255,255,0.10)">
+      <span></span><span>machine</span><span>capabilities</span><span>joined</span><span>holding</span><span>last seen</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 24px 180px 1fr 220px 160px 160px; gap: 16px; padding: 14px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: center">
+      <span class="live" style="width: 8px; height: 8px; border-radius: 50%; background: #3987e5; display: inline-block"></span>
+      <span>jmac23-3-local <span style="color: #8B8980">· this</span></span>
+      <span style="color: #A9A79C">harvest index process transcribe</span>
+      <span style="color: #A9A79C">acme-sales · research</span>
+      <span style="color: #3987e5">2 running · 3 leases</span>
+      <span>now</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 24px 180px 1fr 220px 160px 160px; gap: 16px; padding: 14px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: center">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #8B8980; display: inline-block"></span>
+      <span>studio-mini</span>
+      <span style="color: #A9A79C">harvest transcribe</span>
+      <span style="color: #A9A79C">life · acme-sales</span>
+      <span style="color: #8B8980">idle</span>
+      <span style="color: #8B8980">2m ago</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 24px 180px 1fr 220px 160px 160px; gap: 16px; padding: 14px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: center">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #fab219; display: inline-block"></span>
+      <span>hetzner-01</span>
+      <span style="color: #A9A79C">index process</span>
+      <span style="color: #A9A79C">acme-sales · research</span>
+      <span style="color: #fab219">1 abandoned lease</span>
+      <span style="color: #fab219">3d ago</span>
+    </div>
+  </div>
+
+  <div style="margin-top: auto; display: flex; justify-content: space-between; font-size: 11px; color: #5E5D59">
+    <span>machine wikis ls · status --peers · pipeline due · schedule ls · op since</span>
+    <span>polled every 5s · trace log tailed live</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

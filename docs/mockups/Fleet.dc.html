@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fleet: who harvested what today, and what's next</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#F6F1E7;font-family:'Instrument Sans',system-ui,sans-serif;color:#1F1E1B}
+a{color:#1F1E1B;text-decoration:none}a:hover{color:#C2542D}
+@keyframes pulse{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+.live{animation:pulse 1.6s ease-in-out infinite}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #F6F1E7; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="height: 64px; box-sizing: border-box; padding: 0 40px; display: flex; align-items: center; justify-content: space-between">
+    <div style="display: flex; align-items: center; gap: 28px">
+      <div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px">llm-wiki</div>
+      <nav style="display: flex; gap: 22px; font-size: 14px">
+        <a href="Today.dc.html" style="color: #66625A">Today</a>
+        <a href="New.dc.html" style="color: #66625A">What's new</a>
+        <a href="Fleet.dc.html" style="font-weight: 600; border-bottom: 2px solid #1F1E1B; padding-bottom: 2px">Fleet</a>
+        <a href="Briefing.dc.html" style="color: #66625A">Briefings</a>
+      </nav>
+    </div>
+    <button style="height: 36px; padding: 0 14px; border: 1px solid rgba(31,30,27,0.14); border-radius: 999px; background: #FFFFFF; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A6E; display: inline-block"></span>acme-sales
+    </button>
+  </div>
+
+  <div style="padding: 16px 40px 0; display: flex; flex-direction: column; gap: 6px">
+    <h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 40px; font-weight: 400; line-height: 1.1">Your fleet today</h1>
+    <p style="margin: 0; font-size: 16px; color: #66625A">3 machines harvested <strong style="color: #1F1E1B; font-weight: 600">47 pages</strong> from <strong style="color: #1F1E1B; font-weight: 600">8 channels</strong>. Two are working right now. Everything is on schedule except HubSpot.</p>
+  </div>
+
+  <div style="flex-grow: 1; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 24px; padding: 8px 40px 32px; min-height: 0">
+
+    <div style="position: relative; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 20px; overflow: hidden">
+      <svg viewBox="0 0 960 700" width="960" height="700" role="img" aria-label="Orbit: the wiki at the center, three machines on the inner ring, the channels each machine harvested on the outer ring, with today's counts" style="position: absolute; left: 0; top: 0">
+        <circle cx="480" cy="360" r="140" fill="none" stroke="rgba(31,30,27,0.08)"/>
+        <circle cx="480" cy="360" r="290" fill="none" stroke="rgba(31,30,27,0.06)" stroke-dasharray="2 6"/>
+
+        <g stroke-width="2" fill="none">
+          <line x1="480" y1="360" x2="480" y2="220" stroke="#1F7A6E"/>
+          <line x1="480" y1="360" x2="359" y2="430" stroke="#1F7A6E"/>
+          <line x1="480" y1="360" x2="601" y2="430" stroke="rgba(31,30,27,0.25)"/>
+        </g>
+
+        <g stroke-width="1.5" fill="none">
+          <line x1="480" y1="220" x2="335" y2="109" stroke="#2a78d6"/>
+          <line x1="480" y1="220" x2="480" y2="70" stroke="#2a78d6" opacity="0.6"/>
+          <line x1="480" y1="220" x2="625" y2="109" stroke="#eb6834" opacity="0.7"/>
+          <line x1="480" y1="220" x2="731" y2="215" stroke="#e87ba4" stroke-dasharray="3 5"/>
+          <line x1="359" y1="430" x2="200" y2="285" stroke="#1baf7a"/>
+          <line x1="359" y1="430" x2="275" y2="565" stroke="rgba(31,30,27,0.25)"/>
+          <line x1="601" y1="430" x2="685" y2="565" stroke="#1baf7a" opacity="0.7"/>
+          <line x1="601" y1="430" x2="760" y2="285" stroke="#eda100"/>
+          <line x1="601" y1="430" x2="555" y2="640" stroke="#eb6834"/>
+        </g>
+
+        <g fill="#1F7A6E">
+          <circle r="3.5"><animateMotion dur="2.4s" repeatCount="indefinite" path="M335 109 L480 220 L480 360"/></circle>
+          <circle r="3.5"><animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite" path="M335 109 L480 220 L480 360"/></circle>
+          <circle r="3.5"><animateMotion dur="2.8s" repeatCount="indefinite" path="M200 285 L359 430 L480 360"/></circle>
+        </g>
+
+        <g font-family="'Instrument Sans', system-ui, sans-serif" font-size="12" fill="#66625A">
+          <text x="380" y="150" text-anchor="end">14 threads → 6 pages</text>
+          <text x="492" y="150">2 records</text>
+          <text x="580" y="150">8 records → 2 updated</text>
+          <text x="630" y="240" fill="#8A5A12">not fetched</text>
+          <text x="262" y="345" text-anchor="end">20 videos · 10 transcribed</text>
+          <text x="302" y="512" text-anchor="end">quiet today</text>
+          <text x="660" y="512">3 lessons</text>
+          <text x="690" y="345">12 items → 4 pages</text>
+          <text x="586" y="548">1 page changed</text>
+        </g>
+
+        <g font-family="'Instrument Sans', system-ui, sans-serif" font-size="13" fill="#1F1E1B" text-anchor="middle">
+          <circle cx="335" cy="109" r="16" fill="#FFFFFF" stroke="#2a78d6" stroke-width="2"/><text x="335" y="86">Gmail · clients</text>
+          <circle cx="480" cy="70" r="16" fill="#FFFFFF" stroke="#2a78d6" stroke-width="2"/><text x="480" y="47">Gmail · founders</text>
+          <circle cx="625" cy="109" r="16" fill="#FFFFFF" stroke="#eb6834" stroke-width="2"/><text x="625" y="86">Notion · CRM</text>
+          <circle cx="731" cy="215" r="16" fill="#FBEFD9" stroke="#e87ba4" stroke-width="2" stroke-dasharray="3 3"/><text x="731" y="192">HubSpot · pages</text>
+          <circle cx="200" cy="285" r="16" fill="#FFFFFF" stroke="#1baf7a" stroke-width="2"/><text x="200" y="262">YouTube · SaaS Growth</text>
+          <circle cx="275" cy="565" r="16" fill="#FFFFFF" stroke="#8A857B" stroke-width="2"/><text x="275" y="602">Calendar</text>
+          <circle cx="685" cy="565" r="16" fill="#FFFFFF" stroke="#1baf7a" stroke-width="2"/><text x="685" y="602">somecourse.com</text>
+          <circle cx="760" cy="285" r="16" fill="#FFFFFF" stroke="#eda100" stroke-width="2"/><text x="760" y="262">RSS · industry</text>
+          <circle cx="555" cy="640" r="16" fill="#FFFFFF" stroke="#eb6834" stroke-width="2"/><text x="555" y="677">Site watch · rival.com</text>
+        </g>
+
+        <g text-anchor="middle" font-family="'Instrument Sans', system-ui, sans-serif">
+          <circle cx="480" cy="220" r="40" fill="#FFFFFF" stroke="#1F7A6E" stroke-width="2"/>
+          <circle cx="480" cy="220" r="48" fill="none" stroke="#1F7A6E" stroke-width="1" class="live"/>
+          <text x="480" y="216" font-size="13" font-weight="600" fill="#1F1E1B">jmac23-3</text>
+          <text x="480" y="232" font-size="11" fill="#1F7A6E">enriching</text>
+
+          <circle cx="359" cy="430" r="40" fill="#FFFFFF" stroke="#1F7A6E" stroke-width="2"/>
+          <circle cx="359" cy="430" r="48" fill="none" stroke="#1F7A6E" stroke-width="1" class="live"/>
+          <text x="359" y="426" font-size="13" font-weight="600" fill="#1F1E1B">studio-mini</text>
+          <text x="359" y="442" font-size="11" fill="#1F7A6E">transcribing 11/20</text>
+
+          <circle cx="601" cy="430" r="40" fill="#FFFFFF" stroke="rgba(31,30,27,0.25)" stroke-width="2"/>
+          <text x="601" y="426" font-size="13" font-weight="600" fill="#1F1E1B">hetzner-01</text>
+          <text x="601" y="442" font-size="11" fill="#66625A">idle · done 16:30</text>
+
+          <circle cx="480" cy="360" r="46" fill="#1F1E1B"/>
+          <text x="480" y="356" font-family="'Instrument Serif', Georgia, serif" font-size="17" fill="#F6F1E7">acme-sales</text>
+          <text x="480" y="374" font-size="11" fill="rgba(246,241,231,0.7)">+47 today</text>
+        </g>
+      </svg>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px; min-height: 0">
+      <div style="padding: 18px 20px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="font-size: 13px; color: #66625A; text-transform: uppercase; letter-spacing: 0.08em">Health</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+          <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 24px; font-weight: 600">3<span style="color: #66625A; font-weight: 400">/3</span></span><span style="font-size: 12px; color: #66625A">machines seen today</span></div>
+          <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 24px; font-weight: 600">90<span style="color: #66625A; font-weight: 400">/91</span></span><span style="font-size: 12px; color: #66625A">runs succeeded</span></div>
+          <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 24px; font-weight: 600; color: #8A5A12">1</span><span style="font-size: 12px; color: #66625A">channel needs you</span></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #FBEFD9; border-radius: 10px; font-size: 13px">
+          <span style="flex-grow: 1">HubSpot needs a credential on jmac23-3</span>
+          <a href="#fix" style="color: #8A5A12; font-weight: 600">Add it</a>
+        </div>
+      </div>
+
+      <div style="padding: 18px 20px; background: #FFFFFF; border: 1px solid rgba(31,30,27,0.10); border-radius: 16px; display: flex; flex-direction: column; gap: 12px; flex-grow: 1; min-height: 0">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <div style="font-size: 13px; color: #66625A; text-transform: uppercase; letter-spacing: 0.08em">Today, hour by hour</div>
+          <span style="font-size: 12px; color: #66625A">now 21:04</span>
+        </div>
+        <div style="position: relative; height: 34px">
+          <div style="position: absolute; left: 0; right: 0; top: 15px; height: 4px; border-radius: 2px; background: #EFEAE0"></div>
+          <div style="position: absolute; left: 0; width: 88%; top: 15px; height: 4px; border-radius: 2px; background: #1F1E1B"></div>
+          <sc-for list="{{marks}}" as="m" hint-placeholder-count="8">
+            <span style="{{m.style}}" title="{{m.label}}"></span>
+          </sc-for>
+          <span style="position: absolute; left: 88%; top: 6px; width: 2px; height: 22px; background: #C2542D"></span>
+          <span style="position: absolute; left: 0; top: 24px; font-size: 11px; color: #8A857B">00:00</span>
+          <span style="position: absolute; right: 0; top: 24px; font-size: 11px; color: #8A857B">24:00</span>
+        </div>
+        <div style="display: flex; flex-direction: column; overflow: hidden">
+          <sc-for list="{{plan}}" as="p" hint-placeholder-count="7">
+            <div style="display: grid; grid-template-columns: 48px 12px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid rgba(31,30,27,0.06)">
+              <span style="{{p.timeStyle}}">{{p.time}}</span>
+              <span style="{{p.mark}}"></span>
+              <span style="{{p.textStyle}}">{{p.text}}</span>
+              <span style="font-size: 12px; color: #8A857B">{{p.who}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const t = (c) => `font-size:13px;color:${c};font-variant-numeric:tabular-nums`;
+    const mk = (c, hollow) => `width:10px;height:10px;border-radius:50%;${hollow ? `border:1.5px solid ${c};box-sizing:border-box` : `background:${c}`};display:inline-block`;
+    const done = 'font-size:14px;color:#66625A';
+    const next = 'font-size:14px;color:#1F1E1B';
+    const plan = [
+      { time: '02:00', text: 'Maintenance · doctor + reindex', who: 'hetzner-01', timeStyle: t('#8A857B'), mark: mk('#3C8A4E'), textStyle: done },
+      { time: '04:00', text: 'Improve pass · failed, retries tomorrow', who: 'jmac23-3', timeStyle: t('#8A857B'), mark: mk('#C2542D'), textStyle: done },
+      { time: '07:00', text: 'Morning briefing · delivered', who: 'jmac23-3', timeStyle: t('#8A857B'), mark: mk('#3C8A4E'), textStyle: done },
+      { time: '16:30', text: 'somecourse.com · 3 lessons', who: 'hetzner-01', timeStyle: t('#8A857B'), mark: mk('#3C8A4E'), textStyle: done },
+      { time: 'now', text: 'Gmail enrich · YouTube transcribe', who: '2 machines', timeStyle: t('#1F7A6E'), mark: `${mk('#1F7A6E')};animation:pulse 1.6s ease-in-out infinite`, textStyle: next },
+      { time: '22:00', text: 'Nightly dream · merge today into the wiki', who: 'jmac23-3', timeStyle: t('#1F1E1B'), mark: mk('#1F1E1B', true), textStyle: next },
+      { time: '22:00', text: 'Rebuild search index', who: 'hetzner-01', timeStyle: t('#1F1E1B'), mark: mk('#1F1E1B', true), textStyle: next },
+      { time: '23:00', text: 'Curate · last hourly run of the day', who: 'jmac23-3', timeStyle: t('#1F1E1B'), mark: mk('#1F1E1B', true), textStyle: next },
+    ];
+    const marks = [
+      { h: 2, c: '#3C8A4E', label: 'maintenance' }, { h: 4, c: '#C2542D', label: 'improve failed' }, { h: 7, c: '#3C8A4E', label: 'briefing' },
+      { h: 16.5, c: '#3C8A4E', label: 'somecourse' }, { h: 19.6, c: '#3C8A4E', label: 'youtube' }, { h: 22, c: '#1F1E1B', label: 'nightly' }, { h: 23, c: '#1F1E1B', label: 'curate' },
+    ].map((m) => ({ label: m.label, style: `position:absolute;left:calc(${(m.h / 24) * 100}% - 5px);top:12px;width:10px;height:10px;border-radius:50%;background:${m.h > 21 ? '#FFFFFF' : m.c};border:2px solid ${m.c};box-sizing:border-box` }));
+    return { plan, marks };
+  }
+}
+</script>
+</body>
+</html>

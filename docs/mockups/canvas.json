@@ -1,0 +1,44 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Today.dc.html":    {"x": 0,    "y": -1320, "w": 1440, "h": 900, "title": "E1 · Today — what's new, right now, the plan", "is_interactive": true},
+    "New.dc.html":      {"x": 1520, "y": -1320, "w": 1440, "h": 900, "title": "E2 · What's new — by area, drilled into pages + diff", "is_interactive": true},
+    "Fleet.dc.html":    {"x": 3040, "y": -1320, "w": 1440, "h": 900, "title": "E3 · Fleet — who harvested what today, what's next", "is_interactive": true},
+    "Briefing.dc.html": {"x": 4560, "y": -1320, "w": 1440, "h": 900, "title": "E4 · Briefings — the morning report", "is_interactive": true},
+    "HomeB.dc.html": {"h": 900, "is_interactive": true, "title": "B · Home alternate — the ledger", "w": 1440, "x": 0, "y": 1020},
+    "HomeC.dc.html": {"h": 900, "title": "C · Home alternate — the orbit", "w": 1440, "x": 1520, "y": 1020},
+    "Main.dc.html": {"h": 900, "is_interactive": true, "title": "A1 · Home — wikis and machines", "w": 1440, "x": 0, "y": 0},
+    "Ticket.dc.html": {"h": 900, "title": "A3 · Drill-down — ticket, egress, log", "w": 1440, "x": 3040, "y": 0},
+    "Wiki.dc.html": {"h": 900, "is_interactive": true, "title": "A2 · Wiki view — flow map + activity", "w": 1440, "x": 1520, "y": 0}
+  },
+  "createdOnFiles": {"at": "2026-09-28T04:10:00Z", "v": 1},
+  "designSystems": [],
+  "launch": {"view": "canvas"},
+  "notes": {
+    "t0": {"kind": "title1", "maxW": 6000, "text": "Direction E · Executive view — light, warm, attention-first", "x": 0, "y": -1590},
+    "s0": {"fill": "orange", "w": 420, "x": 6080, "y": -1320, "text": "Direction E replaces A as the main direction. Today is the landing page; What's new, Fleet and Briefings are its three drill-downs and share the nav. Every count still maps to a CLI verb: git changed + page ls for what's new, pipeline due + tickets ls for right now, schedule ls for the plan, op since for what ran, and the daily-report page for the briefing. Grouping by area/tag comes from page frontmatter; grouping by channel from the watch name."},
+    "s1": {
+      "fill": "gray",
+      "text": "Every field on these boards maps to a shipped CLI verb with --json: machine wikis ls, status --peers, pipeline due, pipeline jobs ls, pipeline tickets ls/show, schedule ls, op since, op logs, search status. Live feel comes from tailing the per-day trace jsonl; the REPLAY toggle replays a recorded stream at 10–50x for demos. Data on the boards is illustrative; the dev box today has one wiki, one machine and no jobs.",
+      "w": 420,
+      "x": 3040,
+      "y": 1020
+    },
+    "t1": {"kind": "title1", "maxW": 4480, "text": "Direction A · Operations room (sys-admin view, superseded)", "w": 240, "x": 0, "y": -270},
+    "t2": {"kind": "title1", "maxW": 2960, "text": "Home alternates — B dense ledger · C radial orbit", "w": 240, "x": 0, "y": 750}
+  },
+  "order": [
+    "Today.dc.html",
+    "New.dc.html",
+    "Fleet.dc.html",
+    "Briefing.dc.html",
+    "Main.dc.html",
+    "Wiki.dc.html",
+    "Ticket.dc.html",
+    "HomeB.dc.html",
+    "HomeC.dc.html"
+  ],
+  "pages": [],
+  "title": "Wiki Mission Control"
+}

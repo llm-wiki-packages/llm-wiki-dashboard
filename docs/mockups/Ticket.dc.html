@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wiki view with a ticket opened</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#121210;font-family:'Space Grotesk',system-ui,sans-serif;color:#F2F1EA}
+a{color:#F2F1EA;text-decoration:none}a:hover{color:#FFFFFF}
+@keyframes pulse{0%{opacity:.25}50%{opacity:1}100%{opacity:.25}}
+.live{animation:pulse 1.6s ease-in-out infinite}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #121210">
+  <div style="position: absolute; left: 0; top: 0; width: 1440px; height: 900px">
+    <dc-import name="Wiki" hint-size="1440px,900px"></dc-import>
+  </div>
+  <div style="position: absolute; left: 0; top: 0; width: 1440px; height: 900px; background: rgba(18,18,16,0.55)"></div>
+
+  <div style="position: absolute; right: 0; top: 0; width: 520px; height: 900px; box-sizing: border-box; background: #1B1B18; border-left: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; box-shadow: -24px 0 48px rgba(0,0,0,0.45)">
+
+    <div style="padding: 20px 24px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <div style="display: flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8B8980">
+          <span>acme-sales</span><span>/</span><span>gmail-clients</span><span>/</span><span style="color: #F2F1EA">t-8f21</span>
+        </div>
+        <button aria-label="Close panel" style="width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; background: transparent; color: #A9A79C; cursor: pointer; display: flex; align-items: center; justify-content: center">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M1 1l10 10M11 1 1 11"/></svg>
+        </button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span class="live" style="width: 10px; height: 10px; border-radius: 50%; background: #3987e5; display: inline-block"></span>
+        <span style="font-size: 20px; font-weight: 600">enrich · running</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #A9A79C">00:42 elapsed</span>
+      </div>
+      <div style="display: flex; gap: 8px">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: rgba(57,135,229,0.15); color: #3987e5">Gmail · clients</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); color: #A9A79C">jmac23-3-local</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); color: #A9A79C">attempt 1 of 3</span>
+      </div>
+    </div>
+
+    <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; font-size: 13px">
+      <div style="color: #8B8980">job</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">gmail-clients · every 30m</div>
+      <div style="color: #8B8980">target</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">imap://joe@acme.com/INBOX?label=clients</div>
+      <div style="color: #8B8980">dest</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">sources/gmail/clients/2026-09-27.md</div>
+      <div style="color: #8B8980">skill</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">capture-mail → enrich-thread</div>
+      <div style="color: #8B8980">captured</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">11 threads · 4 new since last run</div>
+    </div>
+
+    <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 10px">
+      <div style="font-size: 12px; color: #8B8980; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px">
+        <svg width="12" height="13" viewBox="0 0 12 13" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M6 1 1.5 3v3.2c0 2.6 1.9 4.6 4.5 5.8 2.6-1.2 4.5-3.2 4.5-5.8V3z"/></svg>
+        Sandbox and egress this slice was minted with
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; font-size: 13px">
+        <div style="color: #8B8980">sandbox</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">harvest-net</div>
+        <div style="color: #8B8980">egress</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 3px"><span>imap.gmail.com:993</span><span>oauth2.googleapis.com:443</span><span style="color: #8B8980">everything else denied</span></div>
+        <div style="color: #8B8980">credential</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">gmail-acme · bound on this machine</div>
+        <div style="color: #8B8980">writes</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">sources/gmail/clients/ only</div>
+      </div>
+    </div>
+
+    <div style="flex-grow: 1; display: flex; flex-direction: column; min-height: 0">
+      <div style="padding: 14px 24px 10px; display: flex; align-items: center; justify-content: space-between">
+        <div style="font-size: 12px; color: #8B8980; text-transform: uppercase; letter-spacing: 0.08em">Log · this ticket</div>
+        <div style="display: flex; gap: 6px">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; background: rgba(255,255,255,0.10); color: #F2F1EA">all</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; color: #8B8980">rc≠0</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; color: #8B8980">dispatch</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; color: #8B8980">hook</span>
+        </div>
+      </div>
+      <div style="flex-grow: 1; overflow: hidden; font-family: 'IBM Plex Mono', monospace; font-size: 11px; display: flex; flex-direction: column">
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+          <div style="display: grid; grid-template-columns: 64px 64px 1fr 36px; gap: 10px; padding: 6px 24px; border-top: 1px solid rgba(255,255,255,0.05); align-items: baseline">
+            <span style="color: #5E5D59">{{r.at}}</span>
+            <span style="color: #8B8980">{{r.kind}}</span>
+            <span style="color: #D1CFC5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.argv}}</span>
+            <span style="{{r.rcStyle}}">{{r.rc}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding: 12px 24px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center">
+        <span style="font-size: 12px; color: #8B8980">tail of ops-2026-09-27.jsonl · 18 rows</span>
+        <a href="#log" style="font-size: 12px; color: #A9A79C">open full log explorer</a>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (at, kind, argv, rc) => ({
+      at, kind, argv, rc: String(rc),
+      rcStyle: `text-align:right;color:${rc === 0 ? '#0ca30c' : '#ec835a'}`,
+    });
+    const rows = [
+      mk('21:03:41', 'dispatch', 'page create title="Re: Q4 renewal" dest=sources/gmail/clients', 0),
+      mk('21:03:39', 'dispatch', 'search query "acme renewal terms" k=5', 0),
+      mk('21:03:31', 'dispatch', 'page read sources/gmail/clients/2026-09-26.md section=threads', 0),
+      mk('21:03:22', 'hook', 'guard sources/gmail/clients/2026-09-27.md', 0),
+      mk('21:03:20', 'dispatch', 'pipeline tickets update t-8f21 stage=enrich status=working', 0),
+      mk('21:03:01', 'dispatch', 'credential get gmail-acme', 0),
+      mk('21:02:58', 'spawn', 'sandbox harvest-net · skill enrich-thread · model sonnet', 0),
+      mk('21:02:57', 'dispatch', 'pipeline tickets open t-8f21 stage=enrich', 0),
+      mk('20:58:12', 'dispatch', 'pipeline tickets close t-8e07 (harvest → enrich)', 0),
+      mk('20:57:44', 'dispatch', 'pipeline tickets update t-8e07 captured=11 missing=0', 0),
+      mk('20:47:10', 'dispatch', 'op log harvest.retry reason=imap-timeout', 1),
+      mk('20:46:58', 'dispatch', 'pipeline tickets open t-8e07 stage=harvest', 0),
+    ];
+    return { rows };
+  }
+}
+</script>
+</body>
+</html>
