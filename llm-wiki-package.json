@@ -2,19 +2,24 @@
   "schema_version": 1,
   "name": "llm-wiki-dashboard",
   "repository": "llm-wiki-packages/llm-wiki-dashboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The reference dashboard: what's new in your wikis, what's running, what's scheduled, and the briefings.",
   "license": "MIT",
   "min_ops_version": "0.3.7",
-  "platforms": ["macos", "linux"],
-  "runtimes": ["node"],
+  "platforms": [
+    "macos",
+    "linux"
+  ],
+  "runtimes": [
+    "node"
+  ],
   "artifacts": [
     {
       "type": "app",
       "name": "dashboard",
       "path": ".",
       "start": "npm start",
-      "install": "npm ci --omit=dev"
+      "install": "npm ci"
     }
   ]
 }
