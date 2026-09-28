@@ -4,7 +4,8 @@
 
 import { Hono } from 'hono'
 import { brand } from '@dashboard/shared/brand'
-import type { AppConfig, HealthReport } from '@dashboard/shared/types'
+import { SEARCH_FILTER_KINDS } from '@dashboard/shared/types'
+import type { AppConfig, HealthReport, SearchParams } from '@dashboard/shared/types'
 import { config } from '../config/index.js'
 import { CliError, type Since } from '../data/cli.js'
 import { NotFound, type Source } from '../data/source.js'
@@ -103,6 +104,26 @@ export function apiRoutes(source: Source): Hono {
     if (!found) return c.json({ error: `no page for [[${link}]]` }, 404)
     return c.json(found)
   })
+
+  api.get('/wikis/:key/search', async (c) => {
+    const q = (c.req.query('q') ?? '').trim()
+    if (!q) return c.json({ error: 'q required' }, 400)
+    const kRaw = c.req.query('k')
+    const k = kRaw ? Number(kRaw) : undefined
+    if (k !== undefined && (!Number.isInteger(k) || k < 1 || k > 100)) return c.json({ error: 'k must be 1–100' }, 400)
+    const params: SearchParams = { q, k, filters: {} }
+    for (const kind of SEARCH_FILTER_KINDS) {
+      const v = c.req.query(kind)?.trim()
+      if (v) params.filters![kind] = v
+    }
+    const from = c.req.query('captured_from')?.trim()
+    const to = c.req.query('captured_to')?.trim()
+    if (from) params.capturedFrom = from
+    if (to) params.capturedTo = to
+    return c.json(await source.search(c.req.param('key'), params))
+  })
+
+  api.get('/wikis/:key/facets', async (c) => c.json(await source.facets(c.req.param('key'))))
 
   return api
 }

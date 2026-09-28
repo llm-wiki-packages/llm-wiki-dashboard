@@ -7,9 +7,12 @@ import type {
   BriefingsView,
   DataSource,
   FleetView,
+  Facets,
   NewView,
   PageView,
   Resolved,
+  SearchParams,
+  SearchView,
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
@@ -35,6 +38,8 @@ export interface Source {
   page(key: string, rel: string): Promise<PageView | null>
   /** Where a `[[wikilink]]` points, by the page's file stem, the way an editor resolves it. */
   resolve(key: string, link: string): Promise<Resolved | null>
+  search(key: string, params: SearchParams): Promise<SearchView>
+  facets(key: string): Promise<Facets>
 }
 
 export class NotFound extends Error {

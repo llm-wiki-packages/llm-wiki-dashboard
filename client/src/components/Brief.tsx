@@ -3,7 +3,7 @@
 
 import Markdown from 'react-markdown'
 import { Link } from '@tanstack/react-router'
-import { withWikilinks, wikilinkTarget } from '@/lib/wikilinks'
+import { preparePage, wikilinkTarget } from '@/lib/wikilinks'
 
 export function Brief({ wikiKey, markdown }: { wikiKey: string; markdown: string }) {
   return (
@@ -27,7 +27,7 @@ export function Brief({ wikiKey, markdown }: { wikiKey: string; markdown: string
           },
         }}
       >
-        {withWikilinks(markdown)}
+        {preparePage(markdown)}
       </Markdown>
     </div>
   )

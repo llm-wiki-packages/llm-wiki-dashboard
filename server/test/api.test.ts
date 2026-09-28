@@ -77,3 +77,23 @@ describe('reader', () => {
     expect((await app.request('/api/wikis/acme-sales/page?path=/etc/x.md', { headers })).status).toBe(400)
   })
 })
+
+describe('search', () => {
+  it('answers hits for a question and honors an area filter', async () => {
+    const res = await app.request('/api/wikis/acme-sales/search?q=anchoring&area=Product%20learning', { headers })
+    expect(res.status).toBe(200)
+    const view = (await res.json()) as { hits: Array<{ path: string }>; count: number }
+    expect(view.count).toBeGreaterThan(0)
+    expect(view.hits.every((h) => h.path.length > 0)).toBe(true)
+  })
+  it('requires q and bounds k', async () => {
+    expect((await app.request('/api/wikis/acme-sales/search', { headers })).status).toBe(400)
+    expect((await app.request('/api/wikis/acme-sales/search?q=x&k=999', { headers })).status).toBe(400)
+  })
+  it('lists facets', async () => {
+    const res = await app.request('/api/wikis/acme-sales/facets', { headers })
+    const f = (await res.json()) as { areas: string[]; unders: string[] }
+    expect(f.areas).toContain('Customers')
+    expect(f.unders).toContain('wiki')
+  })
+})

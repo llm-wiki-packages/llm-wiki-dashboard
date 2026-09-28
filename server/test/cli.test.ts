@@ -51,6 +51,21 @@ describe('VERBS', () => {
   })
 })
 
+describe('search argv', () => {
+  it('puts the question after -- and each filter as filter=kind:value', () => {
+    expect(cli.VERBS['wiki.search.query']({ wiki: 'kb', text: '-what about renewals?', k: 25, filters: { area: 'Customers', '-tag': 'draft', captured_from: '2026-09-01' } })).toEqual([
+      'wiki', '--read-only', 'kb', 'search', 'query', 'filter=k:25', 'filter=area:Customers', 'filter=-tag:draft', 'filter=captured_from:2026-09-01', '--json', '--', '-what about renewals?',
+    ])
+  })
+  it('refuses an unknown filter, a bad date, a multi-line value, and empty text', () => {
+    expect(() => cli.VERBS['wiki.search.query']({ wiki: 'kb', text: 'x', filters: { nope: '1' } })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.search.query']({ wiki: 'kb', text: 'x', filters: { captured_to: 'yesterday' } })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.search.query']({ wiki: 'kb', text: 'x', filters: { area: 'a\nb' } })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.search.query']({ wiki: 'kb', text: '   ' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.search.query']({ wiki: 'kb', text: 'x', k: 500 })).toThrow(cli.CliError)
+  })
+})
+
 describe('spawnRunner', () => {
   it('runs the verb with the read floor in the environment and parses the JSON answer', async () => {
     const out = await cli.spawnRunner().run<{ argv: string[]; permissions: string | null }>('wiki.pipeline.due', {

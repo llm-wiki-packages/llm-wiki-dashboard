@@ -221,3 +221,60 @@ export type DashboardEvent =
   | { type: 'trace'; wiki: string; row: TraceRow }
   | { type: 'changed'; wiki: string; views: ViewName[] }
   | { type: 'heartbeat'; now: string }
+
+/** The search filters the engine takes; every value is a comma-joined OR, and a leading `-` negates. */
+export const SEARCH_FILTER_KINDS = [
+  'author',
+  'group',
+  'group_type',
+  'type',
+  'source_host',
+  'area',
+  'tag',
+  'bundle_id',
+  'under',
+  'curation',
+] as const
+export type SearchFilterKind = (typeof SEARCH_FILTER_KINDS)[number]
+
+export interface SearchParams {
+  q: string
+  k?: number
+  filters?: Partial<Record<SearchFilterKind, string>>
+  capturedFrom?: string
+  capturedTo?: string
+}
+
+export interface SearchHit {
+  rank: number
+  score: number
+  path: string
+  title: string
+  snippet: string
+  documentId?: string
+  curation?: string
+}
+
+export interface SearchView {
+  q: string
+  backend: string
+  degraded: boolean
+  count: number
+  hits: SearchHit[]
+  /** Filters the engine could not honor exactly, as it names them. */
+  emulated: string[]
+  degradations: string[]
+}
+
+/** The values the filters can take, read off the wiki's pages. */
+export interface Facets {
+  areas: string[]
+  tags: string[]
+  types: string[]
+  groups: string[]
+  groupTypes: string[]
+  hosts: string[]
+  authors: string[]
+  curations: string[]
+  unders: string[]
+}

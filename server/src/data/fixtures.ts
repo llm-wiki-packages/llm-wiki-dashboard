@@ -13,10 +13,12 @@ import type {
   Machine,
   NewItem,
   NewView,
+  Facets,
   NowItem,
   PageView,
   PlanItem,
   Resolved,
+  SearchView,
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
@@ -211,6 +213,46 @@ export function fixturesSource(): Source {
       const full = stemOf(link.split('|')[0] ?? '')
       const page = pagesByStem[full] ?? Object.entries(pagesByStem).find(([k]) => k.split('›')[0]?.trim() === linkStem(link))?.[1]
       return page ? { link, path: page.path } : null
+    },
+    search: async (key, params): Promise<SearchView> => {
+      wiki(key)
+      const words = params.q.toLowerCase().split(/\s+/).filter(Boolean)
+      const wantArea = params.filters?.area?.toLowerCase()
+      const wantUnder = params.filters?.under
+      const hits = Object.values(pagesByStem)
+        .filter((p) => !wantArea || p.areas.some((a) => a.toLowerCase() === wantArea))
+        .filter((p) => !wantUnder || p.path.startsWith(`${wantUnder}/`))
+        .map((p) => {
+          const hay = `${p.title} ${p.body}`.toLowerCase()
+          const score = words.reduce((n, w) => n + (hay.includes(w) ? 1 : 0), 0) / Math.max(1, words.length)
+          return { p, score }
+        })
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, params.k ?? 10)
+        .map((x, i) => ({
+          rank: i + 1,
+          score: x.score,
+          path: x.p.path,
+          title: x.p.title,
+          snippet: x.p.body.replace(/^#.*$/m, '').replace(/\s+/g, ' ').trim().slice(0, 240),
+          curation: 'curated',
+        }))
+      return { q: params.q, backend: 'fixtures', degraded: false, count: hits.length, hits, emulated: [], degradations: [] }
+    },
+    facets: async (key): Promise<Facets> => {
+      wiki(key)
+      return {
+        areas: areaOrder,
+        tags: ['renewal', 'pricing', 'security', 'competitor', 'transcript'],
+        types: ['lesson', 'topic', 'playbook', 'thread', 'transcript', 'report'],
+        groups: ['Pricing Strategy', 'SaaS Growth', 'clients'],
+        groupTypes: ['course', 'channel', 'mailbox'],
+        hosts: ['mail.google.com', 'notion.so', 'youtube.com', 'somecourse.com', 'rival.com'],
+        authors: ['Northwind', 'Contoso', 'SaaS Growth'],
+        curations: ['curated', 'staged', 'uncurated'],
+        unders: ['wiki', 'sources', 'research'],
+      }
     },
   }
 }

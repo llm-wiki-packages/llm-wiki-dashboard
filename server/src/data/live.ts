@@ -7,6 +7,10 @@ import { join } from 'node:path'
 import type {
   AreaSummary,
   Attention,
+  Facets,
+  SearchHit,
+  SearchParams,
+  SearchView,
   Briefing,
   BriefingsView,
   ChannelSummary,
@@ -91,6 +95,23 @@ interface OpSince {
 }
 interface GitChanged {
   files: string[]
+}
+interface SearchAnswer {
+  backend?: string
+  degraded?: boolean
+  count?: number
+  emulated_filters?: string[]
+  degradations?: string[]
+  hits?: Array<{
+    rank: number
+    score: number
+    locator?: string
+    source_path?: string
+    title?: string
+    snippet?: string
+    document_id?: string
+    curation?: string
+  }>
 }
 
 // ---- helpers ------------------------------------------------------------------
@@ -456,6 +477,15 @@ export function liveSource(cli: Runner): Source {
       return index
     })
 
+  /** Every page's frontmatter, for the filter values; rebuilt at most once a minute (memo) and cheap
+   *  for a few thousand pages. A wiki past that wants the engine's own facet answer. */
+  const allPages = (wiki: string) =>
+    memo(`allpages:${wiki}`, async () => {
+      const r = await root(wiki)
+      const index = await stems(wiki)
+      return readPages(r.path, [...index.values()])
+    })
+
   return {
     kind: 'live',
     opsVersion: () =>
@@ -603,7 +633,70 @@ export function liveSource(cli: Runner): Source {
       const path = index.get(stemKey(stem))
       return path ? { link, path } : null
     },
+    search: async (key, params): Promise<SearchView> => {
+      await root(key)
+      const filters: Record<string, string> = {}
+      for (const [kind, value] of Object.entries(params.filters ?? {})) if (value) filters[kind] = value
+      if (params.capturedFrom) filters.captured_from = params.capturedFrom
+      if (params.capturedTo) filters.captured_to = params.capturedTo
+      const ans = await cli.run<SearchAnswer>('wiki.search.query', { wiki: key, text: params.q, k: params.k, filters })
+      const hits: SearchHit[] = (ans.hits ?? []).map((h) => ({
+        rank: h.rank,
+        score: h.score,
+        path: h.source_path ?? h.locator ?? '',
+        title: h.title ?? h.source_path ?? '',
+        snippet: cleanSnippet(h.snippet ?? ''),
+        documentId: h.document_id,
+        curation: h.curation,
+      }))
+      return {
+        q: params.q,
+        backend: ans.backend ?? 'unknown',
+        degraded: Boolean(ans.degraded),
+        count: ans.count ?? hits.length,
+        hits,
+        emulated: ans.emulated_filters ?? [],
+        degradations: ans.degradations ?? [],
+      }
+    },
+    facets: async (key): Promise<Facets> => {
+      const pages = await allPages(key)
+      const tally = (pick: (p: PageMeta) => string[] | string | undefined) => {
+        const counts = new Map<string, number>()
+        for (const p of pages) {
+          const v = pick(p)
+          for (const x of Array.isArray(v) ? v : v ? [v] : []) counts.set(x, (counts.get(x) ?? 0) + 1)
+        }
+        return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([v]) => v).slice(0, 200)
+      }
+      return {
+        areas: tally((p) => p.areas),
+        tags: tally((p) => p.tags),
+        types: tally((p) => p.type),
+        groups: tally((p) => p.group),
+        groupTypes: tally((p) => p.groupType),
+        hosts: tally((p) => p.host),
+        authors: tally((p) => p.author ?? p.channel),
+        curations: tally((p) => p.status),
+        unders: tally((p) => p.rel.split('/')[0]),
+      }
+    },
   }
+}
+
+/** A snippet reads as prose: markdown markers, callout tags and speaker labels dropped. */
+function cleanSnippet(s: string): string {
+  return s
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\[!\w+\]/g, ' ')
+    .replace(/^\s*>+\s?/gm, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*Speaker \d+:\*\*/g, ' ')
+    .replace(/[*_`]{1,3}/g, '')
+    .replace(/\[(\d\d:\d\d)\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 320)
 }
 
 function cap(s: string): string {

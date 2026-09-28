@@ -14,6 +14,10 @@ export interface Args {
   limit?: number
   dirs?: string[]
   path?: string
+  text?: string
+  k?: number
+  /** `kind` → value, already validated against SEARCH_KINDS; a leading `-` on the kind negates. */
+  filters?: Record<string, string>
 }
 
 const KEY = /^[a-z0-9][a-z0-9_-]{0,63}$/
@@ -40,6 +44,34 @@ function dirs(v: string[] | undefined, fallback: string[]): string[] {
   for (const d of list) if (!DIR.test(d)) throw new CliError(`bad dir: ${d}`, 'args')
   return list
 }
+export const SEARCH_KINDS = new Set([
+  'author', 'group', 'group_type', 'type', 'source_host', 'area', 'tag', 'bundle_id', 'under', 'curation', 'captured_from', 'captured_to',
+])
+const DATE = /^\d{4}-\d{2}-\d{2}$/
+// A filter value is one line of ordinary text; the engine splits OR on commas itself.
+const FILTER_VALUE = /^[^\x00-\x1f]{1,200}$/
+
+function searchFilters(a: Args): string[] {
+  const out: string[] = []
+  const k = a.k ?? 10
+  if (!Number.isInteger(k) || k < 1 || k > 100) throw new CliError(`bad k: ${String(a.k)}`, 'args')
+  out.push(`filter=k:${k}`)
+  for (const [rawKind, value] of Object.entries(a.filters ?? {})) {
+    const kind = rawKind.replace(/^-/, '')
+    if (!SEARCH_KINDS.has(kind)) throw new CliError(`unknown filter: ${rawKind}`, 'args')
+    if (!FILTER_VALUE.test(value)) throw new CliError(`bad value for ${kind}`, 'args')
+    if ((kind === 'captured_from' || kind === 'captured_to') && !DATE.test(value)) throw new CliError(`${kind} must be YYYY-MM-DD`, 'args')
+    out.push(`filter=${rawKind}:${value}`)
+  }
+  return out
+}
+
+function text(v: string | undefined): string {
+  const t = (v ?? '').trim()
+  if (!t || t.length > 500 || /[\x00-\x1f]/.test(t)) throw new CliError('search text must be one line of 1–500 characters', 'args')
+  return t
+}
+
 function rel(v: string | undefined): string {
   if (!v || !REL.test(v)) throw new CliError(`bad page path: ${String(v)}`, 'args')
   return v
@@ -63,6 +95,10 @@ export const VERBS = {
   'wiki.git.changed': (a: Args) =>
     wiki(a, 'git', 'changed', ...dirs(a.dirs, ['sources', 'wiki', 'research']), since(a.since, '1d')),
   'wiki.page.read': (a: Args) => wiki(a, 'page', 'read', rel(a.path)),
+  // The question goes after `--`, so a question starting with a dash is never read as a flag.
+  'wiki.search.query': (a: Args) => [
+    'wiki', '--read-only', key(a.wiki), 'search', 'query', ...searchFilters(a), '--json', '--', text(a.text),
+  ],
 } as const
 
 export type Verb = keyof typeof VERBS

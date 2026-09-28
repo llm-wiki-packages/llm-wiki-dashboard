@@ -333,10 +333,72 @@
   }
 }
 
+.prose-brief {
+  overflow-wrap: anywhere;
+}
+.prose-brief blockquote {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-paper);
+  border-radius: 0 10px 10px 0;
+  color: var(--color-ink-2);
+}
+.prose-brief blockquote p {
+  margin: 0;
+}
+.prose-brief h3,
+.prose-brief h4 {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+}
+.prose-brief code {
+  font-size: 0.85em;
+  background: var(--color-paper-2);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prose-brief pre {
+  overflow: auto;
+  background: var(--color-paper-2);
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+}
+
 /* a [[wikilink]] in a rendered page */
 .prose-brief a.wikilink {
   color: var(--color-accent);
   text-decoration: underline;
   text-decoration-color: color-mix(in oklab, var(--color-accent) 40%, transparent);
   text-underline-offset: 3px;
+}
+
+/* the calendar (react-day-picker) follows the theme tokens; doubled selector outranks its own stylesheet */
+.rdp-root.rdp-root {
+  --rdp-accent-color: var(--color-accent);
+  --rdp-accent-background-color: color-mix(in oklab, var(--color-accent) 18%, transparent);
+  --rdp-range_middle-background-color: color-mix(in oklab, var(--color-accent) 12%, transparent);
+  --rdp-range_start-background: var(--color-accent);
+  --rdp-range_end-background: var(--color-accent);
+  --rdp-day-height: 34px;
+  --rdp-day-width: 34px;
+  --rdp-day_button-height: 32px;
+  --rdp-day_button-width: 32px;
+  --rdp-selected-border: 2px solid var(--color-accent);
+  --rdp-today-color: var(--color-accent);
+  --rdp-disabled-opacity: 0.35;
+  font-size: 13px;
+  color: var(--color-ink);
+}
+.rdp-root .rdp-range_start .rdp-day_button,
+.rdp-root .rdp-range_end .rdp-day_button {
+  color: var(--color-accent-ink);
+}
+.rdp-root .rdp-months {
+  flex-wrap: nowrap;
+}
+.rdp-root .rdp-chevron {
+  fill: var(--color-ink-2);
 }

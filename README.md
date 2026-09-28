@@ -23,7 +23,7 @@ Through the machine CLI, once the package is installed: `llm-wiki-cli dashboard`
 | dir | what |
 | :-- | :-- |
 | `server/` | Hono on Node. Reads the ops CLI's `--json` answers and each wiki's page frontmatter, serves `/api/*` and one SSE stream, and the built client. |
-| `client/` | Vite + React + TanStack Router/Query + Tailwind. Four screens (Today, What's new, Fleet, Briefings) and a page reader that `[[wikilinks]]` open. |
+| `client/` | Vite + React + TanStack Router/Query + Tailwind. Five screens (Today, What's new, Fleet, Briefings, Search) and a page reader that `[[wikilinks]]` and search results open. |
 | `shared/` | The API types both sides import, and `brand.ts`, the one file that names the product. |
 | `docs/mockups/` | The design canvas the screens were built from. |
 | `scripts/start-jailed.sh` | The nono jail the server runs under: its grants are the profile. `npm run start:jailed`. |

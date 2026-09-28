@@ -7,10 +7,13 @@ import type {
   AppConfig,
   Briefing,
   BriefingsView,
+  Facets,
   FleetView,
   NewView,
   PageView,
   Resolved,
+  SearchFilterKind,
+  SearchView,
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
@@ -68,6 +71,21 @@ export const q = {
       staleTime: 60_000,
       retry: false,
     }),
+  facets: (key: string) =>
+    queryOptions({ queryKey: ['wiki', key, 'facets'], queryFn: () => get<Facets>(`/wikis/${key}/facets`), staleTime: 300_000 }),
+  search: (key: string, q: string, opts: { k?: number; filters?: Partial<Record<SearchFilterKind, string>>; from?: string; to?: string }) => {
+    const p = new URLSearchParams({ q })
+    if (opts.k) p.set('k', String(opts.k))
+    for (const [kind, v] of Object.entries(opts.filters ?? {})) if (v) p.set(kind, v)
+    if (opts.from) p.set('captured_from', opts.from)
+    if (opts.to) p.set('captured_to', opts.to)
+    return queryOptions({
+      queryKey: ['wiki', key, 'search', p.toString()],
+      queryFn: () => get<SearchView>(`/wikis/${key}/search?${p.toString()}`),
+      staleTime: 60_000,
+      refetchInterval: false,
+    })
+  },
   briefing: (key: string, id: string) =>
     queryOptions({
       queryKey: ['wiki', key, 'briefings', id],
@@ -87,3 +105,6 @@ export const usePage = (key: string, rel: string | undefined) =>
   useQuery({ ...q.page(key, rel ?? ''), enabled: Boolean(rel) })
 export const useResolve = (key: string, link: string | undefined) =>
   useQuery({ ...q.resolve(key, link ?? ''), enabled: Boolean(link) })
+export const useFacets = (key: string) => useQuery(q.facets(key))
+export const useSearch = (key: string, text: string | undefined, opts: Parameters<typeof q.search>[2]) =>
+  useQuery({ ...q.search(key, text ?? '', opts), enabled: Boolean(text) })
