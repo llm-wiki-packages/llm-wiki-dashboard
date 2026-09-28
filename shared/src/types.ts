@@ -22,6 +22,36 @@ export interface AppConfig {
   opsVersion: string | null
   machine: string
   now: string
+  ask: AskOptions
+}
+
+/** What the Ask gear may choose from; the server refuses anything outside these lists. */
+export interface AskOptions {
+  models: string[]
+  efforts: string[]
+  defaultModel: string
+  defaultEffort: string
+  defaultPrefix: string
+}
+
+/** One question for the wiki, run as `<prefix> <q>` in an agent session. */
+export interface AskRequest {
+  q: string
+  model: string
+  effort: string
+  /** A slash command naming the skill, like `/ask`. */
+  prefix: string
+}
+
+export interface AskAnswer {
+  q: string
+  /** Markdown with [[wikilink]] citations. */
+  answer: string
+  skill: string
+  model: string
+  effort: string
+  elapsedS: number
+  session?: string
 }
 
 export interface HealthReport {

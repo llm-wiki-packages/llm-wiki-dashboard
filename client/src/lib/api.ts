@@ -5,6 +5,8 @@
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query'
 import type {
   AppConfig,
+  AskAnswer,
+  AskRequest,
   Briefing,
   BriefingsView,
   Facets,
@@ -24,21 +26,22 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly detail?: string,
+    public readonly kind?: string,
   ) {
     super(message)
   }
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`/api${path}`, { credentials: 'same-origin' })
+async function get<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`/api${path}`, { credentials: 'same-origin', ...init })
   if (!res.ok) {
-    let body: { error?: string; stderr?: string } = {}
+    let body: { error?: string; stderr?: string; kind?: string } = {}
     try {
       body = (await res.json()) as typeof body
     } catch {
       // not JSON
     }
-    throw new ApiError(res.status, body.error ?? res.statusText, body.stderr)
+    throw new ApiError(res.status, body.error ?? res.statusText, body.stderr, body.kind)
   }
   return (await res.json()) as T
 }
@@ -101,6 +104,18 @@ export const q = {
       refetchInterval: false,
     })
   },
+  /** One agent run per distinct question and settings; the answer is kept for the session, never refetched. */
+  ask: (key: string, req: AskRequest) =>
+    queryOptions({
+      queryKey: ['wiki', key, 'ask', req.q, req.model, req.effort, req.prefix],
+      queryFn: () =>
+        get<AskAnswer>(`/wikis/${key}/ask`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req) }),
+      staleTime: Infinity,
+      gcTime: 3_600_000,
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+    }),
   briefing: (key: string, id: string) =>
     queryOptions({
       queryKey: ['wiki', key, 'briefings', id],
@@ -123,3 +138,5 @@ export const useResolve = (key: string, link: string | undefined) =>
 export const useFacets = (key: string) => useQuery(q.facets(key))
 export const useSearch = (key: string, text: string | undefined, opts: Parameters<typeof q.search>[2]) =>
   useQuery({ ...q.search(key, text ?? '', opts), enabled: Boolean(text) })
+export const useAsk = (key: string, req: AskRequest | undefined) =>
+  useQuery({ ...q.ask(key, req ?? { q: '', model: '', effort: '', prefix: '' }), enabled: Boolean(req?.q) })

@@ -53,6 +53,13 @@ const Env = z.object({
     .default(resolve(process.env.XDG_STATE_HOME || resolve(homedir(), '.local/state'), 'llm-wiki-dashboard')),
   /** How many days of history replay offers. */
   DASHBOARD_REPLAY_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  /** The models and efforts the Ask gear offers, comma-separated; the first of each is the default. */
+  DASHBOARD_ASK_MODELS: z.string().default('sonnet,opus,haiku'),
+  DASHBOARD_ASK_EFFORTS: z.string().default('medium,low,high'),
+  /** The skill a question runs through, as its slash command. */
+  DASHBOARD_ASK_PREFIX: z.string().regex(/^\/[a-z0-9][a-z0-9-]{0,63}$/).default('/ask'),
+  /** How long one answer may take, in milliseconds. */
+  DASHBOARD_ASK_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
   DASHBOARD_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
@@ -69,6 +76,8 @@ function readVersion(): string {
   }
 }
 
+/** A comma list of harness words: one word each, never a flag. */
+const list = (v: string) => v.split(',').map((x) => x.trim()).filter((x) => /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(x))
 const truthy = (v: string) => !['0', 'false', 'no', ''].includes(v.toLowerCase())
 
 export const config = {
@@ -89,6 +98,12 @@ export const config = {
   logLevel: env.DASHBOARD_LOG_LEVEL,
   stateDir: env.DASHBOARD_STATE_DIR,
   replayDays: env.DASHBOARD_REPLAY_DAYS,
+  ask: {
+    models: list(env.DASHBOARD_ASK_MODELS),
+    efforts: list(env.DASHBOARD_ASK_EFFORTS),
+    prefix: env.DASHBOARD_ASK_PREFIX,
+    timeoutMs: env.DASHBOARD_ASK_TIMEOUT_MS,
+  },
   /** Every CLI child runs under the read floor, whatever mode the server is in.
    *  Write mode, when it exists, lifts this per route, never globally. */
   cliEnv: {

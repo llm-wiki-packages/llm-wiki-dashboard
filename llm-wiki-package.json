@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "llm-wiki-dashboard",
   "repository": "llm-wiki-packages/llm-wiki-dashboard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The reference dashboard: what's new in your wikis, what's running, what's scheduled, and the briefings.",
   "license": "MIT",
   "min_ops_version": "0.3.7",
@@ -20,6 +20,11 @@
       "path": ".",
       "start": "npm start",
       "install": "npm ci"
+    },
+    {
+      "type": "skill",
+      "name": "ask",
+      "path": "skills/ask"
     }
   ]
 }

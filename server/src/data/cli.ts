@@ -22,6 +22,15 @@ export interface Args {
   sha?: string
   /** A session id or op name, for `op show`. */
   target?: string
+  /** An enabled skill's name, for `skills run`. */
+  skill?: string
+  model?: string
+  effort?: string
+}
+
+export interface RunOptions {
+  /** Overrides the configured per-call timeout. */
+  timeoutMs?: number
 }
 
 const KEY = /^[a-z0-9][a-z0-9_-]{0,63}$/
@@ -92,6 +101,20 @@ function target(v: string | undefined): string {
   return v
 }
 
+const WORD = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
+const SKILL = /^[a-z0-9][a-z0-9-]{0,63}$/
+
+function word(v: string | undefined, what: string): string {
+  if (!v || !WORD.test(v)) throw new CliError(`bad ${what}: ${String(v)}`, 'args')
+  return v
+}
+
+function question(v: string | undefined): string {
+  const t = (v ?? '').trim()
+  if (!t || t.length > 2000 || /[\x00-\x08\x0b-\x1f]/.test(t)) throw new CliError('a question is 1–2000 characters of text', 'args')
+  return t
+}
+
 function rel(v: string | undefined): string {
   if (!v || !REL.test(v)) throw new CliError(`bad page path: ${String(v)}`, 'args')
   return v
@@ -121,6 +144,14 @@ export const VERBS = {
   'wiki.search.query': (a: Args) => [
     'wiki', '--read-only', key(a.wiki), 'search', 'query', ...searchFilters(a), '--json', '--', text(a.text),
   ],
+  // Proposed in the plugins repo (skills run); the question goes after `--`.
+  'wiki.skills.run': (a: Args) => {
+    if (!a.skill || !SKILL.test(a.skill)) throw new CliError(`bad skill: ${String(a.skill)}`, 'args')
+    return [
+      'wiki', '--read-only', key(a.wiki), 'skills', 'run', a.skill,
+      `model=${word(a.model, 'model')}`, `effort=${word(a.effort, 'effort')}`, '--json', '--', question(a.text),
+    ]
+  },
 } as const
 
 export type Verb = keyof typeof VERBS
@@ -137,7 +168,7 @@ export class CliError extends Error {
 }
 
 export interface Runner {
-  run<T = unknown>(verb: Verb, args?: Args): Promise<T>
+  run<T = unknown>(verb: Verb, args?: Args, opts?: RunOptions): Promise<T>
 }
 
 /** Spawns the CLI with no shell, the read floor set, and a timeout. */
@@ -145,7 +176,8 @@ export function spawnRunner(): Runner {
   const [bin, ...pre] = config.cli
   if (!bin) throw new CliError('DASHBOARD_CLI is empty', 'args')
   return {
-    run<T>(verb: Verb, args: Args = {}): Promise<T> {
+    run<T>(verb: Verb, args: Args = {}, opts: RunOptions = {}): Promise<T> {
+      const timeoutMs = opts.timeoutMs ?? config.cliTimeoutMs
       const argv = [...pre, ...VERBS[verb](args)]
       return new Promise<T>((resolve, reject) => {
         const child = spawn(bin, argv, {
@@ -156,8 +188,8 @@ export function spawnRunner(): Runner {
         let err = ''
         const timer = setTimeout(() => {
           child.kill('SIGTERM')
-          reject(new CliError(`${verb}: timed out after ${config.cliTimeoutMs}ms`, 'timeout'))
-        }, config.cliTimeoutMs)
+          reject(new CliError(`${verb}: timed out after ${timeoutMs}ms`, 'timeout'))
+        }, timeoutMs)
         child.stdout.on('data', (d: Buffer) => (out += d.toString()))
         child.stderr.on('data', (d: Buffer) => (err += d.toString()))
         child.on('error', (e) => {

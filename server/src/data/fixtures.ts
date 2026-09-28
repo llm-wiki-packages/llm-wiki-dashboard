@@ -4,6 +4,7 @@
 // serves, so a sales demo never depends on a live pipeline being busy.
 
 import type {
+  AskAnswer,
   AreaSummary,
   ItemKind,
   ReplayDay,
@@ -259,6 +260,31 @@ function dayAt(replayAt: string) {
   }
 }
 
+/** Two canned answers, picked by what the question is about, citing pages the reader can open. */
+function cannedAnswer(q: string): string {
+  if (/renew|northwind|contoso|security|questionnaire/i.test(q))
+    return `**Two renewals are open, and Northwind's hinges on the security questionnaire.** Northwind wants it back before 10 October; Contoso is still negotiating seat count.
+
+- Northwind's thread asks for the questionnaire by 10 October, and last year's answers are 14 of 22 still current. [[Security › Questionnaires|Security questionnaires]]
+- The 8 answers marked *revisit* changed with the SSO rollout: SAML and OIDC now, audit logs kept 400 days. [[Security › Questionnaires|Security questionnaires]]
+- Both threads quote the 2025 price list; the current Team tier differs, so anchor on the outcome first, then the annual price. [[Sales playbook › Packaging|Sales playbook: packaging]]
+
+**Sources**
+
+- [[Security › Questionnaires|Security questionnaires]]
+- [[Sales playbook › Packaging|Sales playbook: packaging]]`
+  return `**Anchor on the outcome, then the annual price, and cap usage rather than seats.** That is the pricing line the wiki has settled on from the course and the podcast.
+
+- Open on the value of the outcome; the annual price is the second anchor, and monthly never comes first. [[Lesson 4 — anchoring]]
+- A cap on usage grows with the customer, while a cap on seats fights their org chart. [[Sales playbook › Packaging|Sales playbook: packaging]]
+- Rival Inc. just added a usage cap to its Team tier, which makes the comparison direct. [[Sales playbook › Packaging|Sales playbook: packaging]]
+
+**Sources**
+
+- [[Lesson 4 — anchoring]]
+- [[Sales playbook › Packaging|Sales playbook: packaging]]`
+}
+
 export function fixturesSource(): Source {
   const a = areas()
   const totalCounts = sum(a.map((x) => x.counts))
@@ -388,6 +414,12 @@ export function fixturesSource(): Source {
           curation: 'curated',
         }))
       return { q: params.q, backend: 'fixtures', degraded: false, count: hits.length, hits, emulated: [], degradations: [] }
+    },
+    ask: async (key, req): Promise<AskAnswer> => {
+      wiki(key)
+      // A pause, so the demo shows the agent at work the way a real answer does.
+      await new Promise((r) => setTimeout(r, 1800))
+      return { q: req.q, answer: cannedAnswer(req.q), skill: req.prefix.slice(1), model: req.model, effort: req.effort, elapsedS: 41 }
     },
     facets: async (key): Promise<Facets> => {
       wiki(key)

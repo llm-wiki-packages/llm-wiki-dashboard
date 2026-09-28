@@ -5,6 +5,7 @@
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
+  AskAnswer,
   AreaSummary,
   Attention,
   Facets,
@@ -31,7 +32,7 @@ import { brand } from '@dashboard/shared/brand'
 import { config } from '../config/index.js'
 import { CliError, type Runner, type Since } from './cli.js'
 import { isPage, readBody, readPages, type PageMeta } from './pages.js'
-import { NotFound, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
+import { NotFound, Unsupported, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
 import { replayViews } from './replay.js'
 import type { Timeline } from './timeline.js'
 
@@ -665,6 +666,27 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         hits,
         emulated: ans.emulated_filters ?? [],
         degradations: ans.degradations ?? [],
+      }
+    },
+    ask: async (key, req): Promise<AskAnswer> => {
+      await root(key)
+      const skill = req.prefix.slice(1)
+      const started = Date.now()
+      let ans: { answer?: string; session?: string; model?: string; effort?: string; elapsed_s?: number }
+      try {
+        ans = await cli.run('wiki.skills.run', { wiki: key, skill, model: req.model, effort: req.effort, text: req.q }, { timeoutMs: config.ask.timeoutMs })
+      } catch (e) {
+        if (e instanceof CliError && /no such command/i.test(`${e.message} ${e.stderr ?? ''}`)) throw new Unsupported('The command line on this machine cannot run a skill on request yet')
+        throw e
+      }
+      return {
+        q: req.q,
+        answer: ans.answer ?? '',
+        skill,
+        model: ans.model ?? req.model,
+        effort: ans.effort ?? req.effort,
+        elapsedS: ans.elapsed_s ?? Math.round((Date.now() - started) / 1000),
+        session: ans.session,
       }
     },
     facets: async (key): Promise<Facets> => {

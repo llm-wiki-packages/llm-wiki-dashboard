@@ -53,6 +53,17 @@ incrementally, so a day costs the CLI calls once. Demo mode replays a canned
 day as yesterday. A link can start it: `/w/<key>?replay=2026-09-26&speed=3600&autoplay=1`
 (`replay=1` picks the latest day).
 
+## Ask the wiki
+
+Search has an **Answer** mode: the question runs as `/ask <question>` in one
+agent session on the wiki, and the answer comes back with `[[wikilink]]`
+citations that open in the reader. The gear picks the model, the effort and
+the prompt prefix (the skill that answers), kept per browser; the server
+accepts only the models and efforts `DASHBOARD_ASK_MODELS` and
+`DASHBOARD_ASK_EFFORTS` list. The `ask` skill ships in this package
+(`skills/ask`). Live mode needs a CLI with `skills run`; until then the page
+says so, and demo mode answers from the fixtures.
+
 ## Customizing
 
 Fork. Change `shared/src/brand.ts` and `client/src/theme.css` first; that

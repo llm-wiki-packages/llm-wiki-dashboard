@@ -63,6 +63,18 @@ describe('timeline argv', () => {
   })
 })
 
+describe('skills run argv', () => {
+  it('names the skill, model and effort as tokens and puts the question after --', () => {
+    expect(cli.VERBS['wiki.skills.run']({ wiki: 'kb', skill: 'ask', model: 'sonnet', effort: 'medium', text: '-why?' })).toEqual([
+      'wiki', '--read-only', 'kb', 'skills', 'run', 'ask', 'model=sonnet', 'effort=medium', '--json', '--', '-why?',
+    ])
+  })
+  it('refuses a flag-shaped model and a skill that is not a unit name', () => {
+    expect(() => cli.VERBS['wiki.skills.run']({ wiki: 'kb', skill: 'ask', model: '--x', effort: 'low', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.skills.run']({ wiki: 'kb', skill: '../ask', model: 'sonnet', effort: 'low', text: 'q' })).toThrow(cli.CliError)
+  })
+})
+
 describe('search argv', () => {
   it('puts the question after -- and each filter as filter=kind:value', () => {
     expect(cli.VERBS['wiki.search.query']({ wiki: 'kb', text: '-what about renewals?', k: 25, filters: { area: 'Customers', '-tag': 'draft', captured_from: '2026-09-01' } })).toEqual([

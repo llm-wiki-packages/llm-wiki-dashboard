@@ -1,14 +1,16 @@
 // A page body rendered as an article: markdown, with wikilinks routed to the
 // in-app reader and outside links opened in a new tab.
 
-import Markdown from 'react-markdown'
+import Markdown, { defaultUrlTransform } from 'react-markdown'
 import { Link } from '@tanstack/react-router'
-import { preparePage, wikilinkTarget } from '@/lib/wikilinks'
+import { WIKILINK_SCHEME, preparePage, wikilinkTarget } from '@/lib/wikilinks'
 
 export function Brief({ wikiKey, markdown }: { wikiKey: string; markdown: string }) {
   return (
     <div className="prose-brief">
       <Markdown
+        // The default transform drops any scheme it does not know, which would blank every wikilink.
+        urlTransform={(url) => (url.startsWith(WIKILINK_SCHEME) ? url : defaultUrlTransform(url))}
         components={{
           a: ({ href, children }) => {
             const target = wikilinkTarget(href)

@@ -5,10 +5,10 @@
 import { Hono } from 'hono'
 import { brand } from '@dashboard/shared/brand'
 import { SEARCH_FILTER_KINDS } from '@dashboard/shared/types'
-import type { AppConfig, HealthReport, SearchParams } from '@dashboard/shared/types'
+import type { AppConfig, AskRequest, HealthReport, SearchParams } from '@dashboard/shared/types'
 import { config } from '../config/index.js'
 import { CliError, type Since } from '../data/cli.js'
-import { NotFound, type Source } from '../data/source.js'
+import { NotFound, Unsupported, type Source } from '../data/source.js'
 
 const SINCE = /^\d{1,3}[hd]$/
 const ID = /^[A-Za-z0-9_-]{1,512}$/
@@ -31,6 +31,7 @@ export function apiRoutes(source: Source): Hono {
 
   api.onError((err, c) => {
     if (err instanceof NotFound) return c.json({ error: err.message }, 404)
+    if (err instanceof Unsupported) return c.json({ error: err.message, kind: 'unsupported' }, 501)
     if (err instanceof CliError) {
       const status = err.kind === 'args' ? 400 : err.kind === 'spawn' ? 503 : 502
       return c.json({ error: err.message, kind: err.kind, stderr: err.stderr }, status)
@@ -75,6 +76,13 @@ export function apiRoutes(source: Source): Hono {
       opsVersion: await source.opsVersion().catch(() => null),
       machine: (await source.wikis().catch(() => []))[0]?.path ? '' : '',
       now: new Date().toISOString(),
+      ask: {
+        models: config.ask.models,
+        efforts: config.ask.efforts,
+        defaultModel: config.ask.models[0] ?? '',
+        defaultEffort: config.ask.efforts[0] ?? '',
+        defaultPrefix: config.ask.prefix,
+      },
     }
     return c.json(body)
   })
@@ -151,6 +159,25 @@ export function apiRoutes(source: Source): Hono {
     if (from) params.capturedFrom = from
     if (to) params.capturedTo = to
     return c.json(await source.search(c.req.param('key'), params))
+  })
+
+  // Runs an agent session, so it is a POST: a prefetch or a crawler never starts one.
+  api.post('/wikis/:key/ask', async (c) => {
+    let raw: Partial<AskRequest>
+    try {
+      raw = (await c.req.json()) as Partial<AskRequest>
+    } catch {
+      return c.json({ error: 'a JSON body is required' }, 400)
+    }
+    const q = typeof raw.q === 'string' ? raw.q.trim() : ''
+    if (!q || q.length > 2000) return c.json({ error: 'q must be 1–2000 characters' }, 400)
+    const model = raw.model ?? config.ask.models[0]
+    const effort = raw.effort ?? config.ask.efforts[0]
+    if (!model || !config.ask.models.includes(model)) return c.json({ error: `model must be one of ${config.ask.models.join(', ')}` }, 400)
+    if (!effort || !config.ask.efforts.includes(effort)) return c.json({ error: `effort must be one of ${config.ask.efforts.join(', ')}` }, 400)
+    const prefix = raw.prefix ?? config.ask.prefix
+    if (typeof prefix !== 'string' || !/^\/[a-z0-9][a-z0-9-]{0,63}$/.test(prefix)) return c.json({ error: 'prefix must be a slash command like /ask' }, 400)
+    return c.json(await source.ask(c.req.param('key'), { q, model, effort, prefix }))
   })
 
   api.get('/wikis/:key/facets', async (c) => c.json(await source.facets(c.req.param('key'))))

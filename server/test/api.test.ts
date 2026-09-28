@@ -138,3 +138,28 @@ describe('replay', () => {
     expect((await app.request('/api/wikis/acme-sales/replay/26-09-2026', { headers })).status).toBe(400)
   })
 })
+
+describe('ask', () => {
+  const post = (body: unknown) =>
+    app.request('/api/wikis/acme-sales/ask', { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(body) })
+
+  it('answers with wikilink citations and echoes what ran', async () => {
+    const res = await post({ q: 'where do the renewals stand?', model: 'sonnet', effort: 'medium', prefix: '/ask' })
+    expect(res.status).toBe(200)
+    const a = (await res.json()) as { answer: string; skill: string; model: string }
+    expect(a.answer).toMatch(/\[\[Security › Questionnaires/)
+    expect(a.skill).toBe('ask')
+    expect(a.model).toBe('sonnet')
+  })
+
+  it('refuses a model or effort outside the closed lists, a prefix that is not a slash command, and an empty question', async () => {
+    expect((await post({ q: 'x', model: '--dangerously-skip-permissions' })).status).toBe(400)
+    expect((await post({ q: 'x', effort: 'max' })).status).toBe(400)
+    expect((await post({ q: 'x', prefix: '/ask; rm -rf ~' })).status).toBe(400)
+    expect((await post({ q: '   ' })).status).toBe(400)
+  })
+
+  it('is POST only', async () => {
+    expect((await app.request('/api/wikis/acme-sales/ask?q=x', { headers })).status).toBe(404)
+  })
+})

@@ -43,6 +43,8 @@ export function createApp(source: Source, hub: EventHub): Hono {
 
   app.route('/api', apiRoutes(source))
   app.route('/api', eventRoutes(hub))
+  // An unknown API path is a JSON 404, never the client's HTML fallback.
+  app.all('/api/*', (c) => c.json({ error: `no route ${c.req.method} ${c.req.path}` }, 404))
 
   if (config.clientDistPresent) {
     const root = relative(process.cwd(), config.clientDist) || '.'

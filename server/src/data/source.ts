@@ -3,6 +3,8 @@
 // bundled demo dataset). Routes talk to this interface and nothing below it.
 
 import type {
+  AskAnswer,
+  AskRequest,
   Briefing,
   BriefingsView,
   DataSource,
@@ -46,7 +48,12 @@ export interface Source {
   resolve(key: string, link: string): Promise<Resolved | null>
   search(key: string, params: SearchParams): Promise<SearchView>
   facets(key: string): Promise<Facets>
+  /** One question answered by an agent session running the prefix's skill. The request is already validated. */
+  ask(key: string, req: AskRequest): Promise<AskAnswer>
 }
+
+/** The machine's CLI has no verb for this yet. */
+export class Unsupported extends Error {}
 
 export class NotFound extends Error {
   constructor(what: string) {
