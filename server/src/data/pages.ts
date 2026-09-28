@@ -28,7 +28,7 @@ export interface PageMeta {
   media?: string
   documentId?: string
   documentRevision?: number
-  sources?: Array<{ resource?: string; id?: string }>
+  sources?: Array<{ resource?: string; id?: string; title?: string }>
 }
 
 export const FM = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
@@ -100,6 +100,7 @@ export function toMeta(rel: string, fm: Record<string, unknown>): PageMeta {
       ? (fm.sources as Array<Record<string, unknown>>).map((s) => ({
           resource: str(s?.resource),
           id: str(s?.id),
+          title: str(s?.title),
         }))
       : undefined,
   }

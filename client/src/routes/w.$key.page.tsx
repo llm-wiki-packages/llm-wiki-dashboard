@@ -6,6 +6,7 @@ import { useConfig, usePage, useResolve } from '@/lib/api'
 import { dayLabel } from '@/lib/format'
 import { Card, Empty, ErrorNote, Skeleton } from '@/components/ui'
 import { Brief } from '@/components/Brief'
+import { ProvenanceTrail } from '@/components/Provenance'
 
 type Search = { link?: string; path?: string }
 
@@ -65,6 +66,7 @@ function PageReader() {
                 </span>
               </div>
             </div>
+            {page.data.provenance && <ProvenanceTrail wikiKey={key} p={page.data.provenance} />}
             <Brief wikiKey={key} markdown={page.data.body} />
           </article>
         </Card>

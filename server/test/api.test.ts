@@ -163,3 +163,13 @@ describe('ask', () => {
     expect((await app.request('/api/wikis/acme-sales/ask?q=x', { headers })).status).toBe(404)
   })
 })
+
+describe('provenance', () => {
+  it('a source page names its channel, machine and the wiki page it went into', async () => {
+    const res = await app.request(`/api/wikis/acme-sales/page?path=${encodeURIComponent('sources/scrapes/somecourse/lesson-4-anchoring.md')}`, { headers })
+    const page = (await res.json()) as { provenance: { channel: { id: string }; captured: { machine: string }; into: Array<{ path: string }> } }
+    expect(page.provenance.channel.id).toBe('somecourse')
+    expect(page.provenance.captured.machine).toBe('hetzner-01')
+    expect(page.provenance.into.map((p) => p.path)).toEqual(['wiki/playbook/packaging.md'])
+  })
+})

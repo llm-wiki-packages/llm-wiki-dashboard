@@ -199,6 +199,19 @@ export interface PageView {
   areas: string[]
   resource?: string
   body: string
+  provenance?: Provenance
+}
+
+/** Where a page came from and where it went: capture, generation, the pages it was distilled from and into. */
+export interface Provenance {
+  channel?: { id: string; name: string }
+  host?: string
+  captured?: { at?: string; by?: string; machine?: string }
+  generated?: { at?: string; stage?: string; by?: string }
+  /** The pages this one was distilled from; `path` when the wiki still has the page. */
+  from: Array<{ title: string; path?: string; resource?: string }>
+  /** The wiki pages that name this one among their sources. */
+  into: Array<{ title: string; path: string }>
 }
 
 export interface Resolved {

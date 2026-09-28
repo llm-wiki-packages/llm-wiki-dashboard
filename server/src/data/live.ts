@@ -5,6 +5,7 @@
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
+  Provenance,
   AskAnswer,
   AreaSummary,
   Attention,
@@ -143,10 +144,12 @@ export function kindOf(p: PageMeta): ItemKind {
   return 'new'
 }
 
+const slug = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+
 export function channelIdOf(p: PageMeta): string {
   if (p.job) return p.job
-  if (p.group) return p.group.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  if (p.channel) return p.channel.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  if (p.group) return slug(p.group)
+  if (p.channel) return slug(p.channel)
   if (p.host) return p.host
   const parts = p.rel.split('/')
   return parts.length > 2 ? parts.slice(0, 3).join('/') : parts[0] ?? 'wiki'
@@ -501,6 +504,34 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     head: async (key, rel) => readHead((await root(key)).path, rel),
   })
 
+  /** document_id → page, and document_id → the wiki pages that list it among their sources. */
+  const provIndex = (wiki: string) =>
+    memo(`prov:${wiki}`, async () => {
+      const byDoc = new Map<string, PageMeta>()
+      const into = new Map<string, PageMeta[]>()
+      for (const p of await allPages(wiki)) {
+        if (p.documentId) byDoc.set(p.documentId, p)
+        for (const s of p.sources ?? []) if (s.id) into.set(s.id, [...(into.get(s.id) ?? []), p])
+      }
+      return { byDoc, into }
+    })
+
+  async function provenanceOf(wiki: string, m: PageMeta): Promise<Provenance> {
+    const { byDoc, into } = await soft(provIndex(wiki), { byDoc: new Map<string, PageMeta>(), into: new Map<string, PageMeta[]>() })
+    const sourced = m.rel.startsWith('sources/') || Boolean(m.harvested || m.resource)
+    return {
+      channel: sourced ? { id: channelIdOf(m), name: channelNameOf(m) } : undefined,
+      host: m.host,
+      captured: m.harvested,
+      generated: m.generated,
+      from: (m.sources ?? []).map((s) => {
+        const hit = s.id ? byDoc.get(s.id) : undefined
+        return { title: s.title ?? hit?.title ?? s.resource ?? s.id ?? 'a source', path: hit?.rel, resource: s.resource }
+      }),
+      into: (m.documentId ? into.get(m.documentId) ?? [] : []).map((p) => ({ title: p.title, path: p.rel })),
+    }
+  }
+
   return {
     kind: 'live',
     replayDays: async (key) => {
@@ -636,6 +667,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         areas: page.meta.areas,
         resource: page.meta.resource,
         body: page.body,
+        provenance: await provenanceOf(key, page.meta),
       }
     },
     resolve: async (key, link): Promise<Resolved | null> => {
