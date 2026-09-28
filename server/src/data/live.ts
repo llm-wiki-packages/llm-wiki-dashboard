@@ -32,13 +32,15 @@ import { config } from '../config/index.js'
 import { CliError, type Runner, type Since } from './cli.js'
 import { isPage, readBody, readPages, type PageMeta } from './pages.js'
 import { NotFound, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
+import { replayViews } from './replay.js'
+import type { Timeline } from './timeline.js'
 
 // ---- CLI answer shapes (only the keys read here) ----------------------------
 
 interface WikisLs {
   wikis: Array<{ key: string; name: string; path: string }>
 }
-interface Status {
+export interface Status {
   machine: string
   schedules?: { total: number; enabled: string[] }
   peers?: Array<{ machine: string; capabilities?: string[]; last_seen?: string | null; state?: string }>
@@ -130,7 +132,7 @@ function hostOf(target?: string): string | undefined {
   }
 }
 
-function kindOf(p: PageMeta): ItemKind {
+export function kindOf(p: PageMeta): ItemKind {
   if (p.extracted === 'failed') return 'failed'
   if (p.extracted === 'queued' || p.extracted === 'false') return 'waiting'
   if (p.rel.startsWith('wiki/') && (p.generated?.stage === 'distill' || (p.sources?.length ?? 0) > 0))
@@ -139,7 +141,7 @@ function kindOf(p: PageMeta): ItemKind {
   return 'new'
 }
 
-function channelIdOf(p: PageMeta): string {
+export function channelIdOf(p: PageMeta): string {
   if (p.job) return p.job
   if (p.group) return p.group.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   if (p.channel) return p.channel.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -148,7 +150,7 @@ function channelIdOf(p: PageMeta): string {
   return parts.length > 2 ? parts.slice(0, 3).join('/') : parts[0] ?? 'wiki'
 }
 
-function channelNameOf(p: PageMeta): string {
+export function channelNameOf(p: PageMeta): string {
   if (p.group) return p.groupType ? `${p.group} · ${p.groupType}` : p.group
   if (p.channel) return p.channel
   if (p.host) return p.host
@@ -156,7 +158,7 @@ function channelNameOf(p: PageMeta): string {
   return p.rel.split('/').slice(0, 3).join(' · ')
 }
 
-function whenOf(p: PageMeta): string {
+export function whenOf(p: PageMeta): string {
   return p.harvested?.at ?? p.generated?.at ?? new Date().toISOString()
 }
 
@@ -199,7 +201,7 @@ function windowStart(window?: string | null): string | undefined {
 
 // ---- the source -------------------------------------------------------------
 
-export function liveSource(cli: Runner): Source {
+export function liveSource(cli: Runner, timeline: Timeline): Source {
   const cache = new Map<string, { at: number; value: Promise<unknown> }>()
   function memo<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const hit = cache.get(key)
@@ -486,15 +488,34 @@ export function liveSource(cli: Runner): Source {
       return readPages(r.path, [...index.values()])
     })
 
+  const replay = replayViews({
+    timeline,
+    root,
+    summary,
+    status,
+    channelsOf,
+    areasOf,
+    briefings: (key) => briefingList(key),
+  })
+
   return {
     kind: 'live',
+    replayDays: async (key) => {
+      await root(key)
+      return replay.days(key)
+    },
+    replayDay: async (key, date) => {
+      await root(key)
+      return replay.day(key, date)
+    },
     opsVersion: () =>
       memo('opsVersion', () =>
         soft(cli.run<{ version?: string; distribution?: string }>('machine.version').then((v) => v.version ?? v.distribution ?? null), null),
       ),
     roots,
     wikis: async () => Promise.all((await roots()).map(summary)),
-    today: async (key): Promise<TodayView> => {
+    today: async (key, at): Promise<TodayView> => {
+      if (at) return replay.today(key, at)
       const r = await root(key)
       const since = hoursSinceMidnight()
       const [w, pages, d, sc, rn, se] = await Promise.all([summary(r), changed(key, since), due(key), schedule(key), runs(key, since), search(key)])
@@ -522,7 +543,8 @@ export function liveSource(cli: Runner): Source {
         briefing: todays,
       }
     },
-    whatsNew: async (key, since): Promise<NewView> => {
+    whatsNew: async (key, since, at): Promise<NewView> => {
+      if (at) return replay.whatsNew(key, at)
       const r = await root(key)
       const [w, pages] = await Promise.all([summary(r), changed(key, since)])
       const channels = await channelsOf(key, pages)
@@ -544,7 +566,8 @@ export function liveSource(cli: Runner): Source {
         .sort((a, b) => b.when.localeCompare(a.when))
       return { wiki: w, since: since === hoursSinceMidnight() ? sinceMidnight() : since, totals: { pages: total(counts), counts }, areas, items }
     },
-    fleet: async (key): Promise<FleetView> => {
+    fleet: async (key, at): Promise<FleetView> => {
+      if (at) return replay.fleet(key, at)
       const r = await root(key)
       const since = hoursSinceMidnight()
       const [w, st, d, sc, rn, pages, se] = await Promise.all([summary(r), soft(status(key), { machine: '' } as Status), due(key), schedule(key), runs(key, since), changed(key, since), search(key)])
@@ -553,22 +576,7 @@ export function liveSource(cli: Runner): Source {
       const channels = await channelsOf(key, pages, discover)
       const runningBy = new Map<string, number>()
       for (const x of d.running ?? []) if (x.machine) runningBy.set(x.machine, (runningBy.get(x.machine) ?? 0) + 1)
-      const machines: Machine[] = (st.peers ?? []).map((p) => {
-        const seen = p.last_seen ?? null
-        const ageH = seen ? (Date.now() - new Date(seen).getTime()) / 3_600_000 : Infinity
-        const running = runningBy.get(p.machine) ?? 0
-        return {
-          name: p.machine,
-          thisMachine: p.machine === st.machine,
-          capabilities: p.capabilities ?? [],
-          lastSeen: seen,
-          state: running ? 'live' : ageH < 3 ? 'idle' : ageH < 48 ? 'idle' : seen ? 'stale' : 'unknown',
-          running,
-          leases: 0,
-        }
-      })
-      if (st.machine && !machines.some((m) => m.thisMachine))
-        machines.unshift({ name: st.machine, thisMachine: true, capabilities: [], lastSeen: new Date().toISOString(), state: 'idle', running: 0, leases: 0 })
+      const machines = machinesOf(st, runningBy)
       const todayRuns = rn.runs.filter((x) => x.when >= sinceMidnight())
       return {
         wiki: w,
@@ -682,6 +690,27 @@ export function liveSource(cli: Runner): Source {
       }
     },
   }
+}
+
+/** The wiki's machines as the status verb sees them, with what each is running. */
+export function machinesOf(st: Status, runningBy: Map<string, number>): Machine[] {
+  const machines: Machine[] = (st.peers ?? []).map((p) => {
+    const seen = p.last_seen ?? null
+    const ageH = seen ? (Date.now() - new Date(seen).getTime()) / 3_600_000 : Infinity
+    const running = runningBy.get(p.machine) ?? 0
+    return {
+      name: p.machine,
+      thisMachine: p.machine === st.machine,
+      capabilities: p.capabilities ?? [],
+      lastSeen: seen,
+      state: running ? 'live' : ageH < 48 ? 'idle' : seen ? 'stale' : 'unknown',
+      running,
+      leases: 0,
+    }
+  })
+  if (st.machine && !machines.some((m) => m.thisMachine))
+    machines.unshift({ name: st.machine, thisMachine: true, capabilities: [], lastSeen: new Date().toISOString(), state: runningBy.get(st.machine) ? 'live' : 'idle', running: runningBy.get(st.machine) ?? 0, leases: 0 })
+  return machines
 }
 
 /** A snippet reads as prose: markdown markers, callout tags and speaker labels dropped. */

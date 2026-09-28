@@ -97,3 +97,44 @@ describe('search', () => {
     expect(f.unders).toContain('wiki')
   })
 })
+
+describe('replay', () => {
+  const day = () => {
+    const d = new Date(Date.now() - 86_400_000)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const todayAt = (h: number) => {
+    const d = new Date()
+    d.setHours(h, 0, 0, 0)
+    return d.toISOString()
+  }
+
+  it('lists the canned day and its events in order', async () => {
+    const days = (await (await app.request('/api/wikis/acme-sales/replay', { headers })).json()) as { days: Array<{ date: string }> }
+    expect(days.days[0]?.date).toBe(day())
+    const rec = (await (await app.request(`/api/wikis/acme-sales/replay/${day()}`, { headers })).json()) as { events: Array<{ at: string }> }
+    const ats = rec.events.map((e) => e.at)
+    expect(ats.length).toBeGreaterThan(40)
+    expect([...ats].sort()).toEqual(ats)
+  })
+
+  it('today at an instant counts only what had landed by then', async () => {
+    // The canned day replays as yesterday.
+    const early = new Date(new Date(todayAt(9)).getTime() - 86_400_000).toISOString()
+    const late = new Date(new Date(todayAt(23)).getTime() - 86_400_000).toISOString()
+    const a = (await (await app.request(`/api/wikis/acme-sales/today?at=${encodeURIComponent(early)}`, { headers })).json()) as TodayView
+    const b = (await (await app.request(`/api/wikis/acme-sales/today?at=${encodeURIComponent(late)}`, { headers })).json()) as TodayView
+    expect(a.totals.pages).toBeGreaterThan(0)
+    expect(a.totals.pages).toBeLessThan(b.totals.pages)
+    expect(b.totals.pages).toBe(51)
+    expect(a.plan.every((p) => p.time <= early || p.status === 'upcoming')).toBe(true)
+  })
+
+  it('refuses an at in the future or outside the window, and a malformed date', async () => {
+    const future = new Date(Date.now() + 3_600_000).toISOString()
+    expect((await app.request(`/api/wikis/acme-sales/today?at=${encodeURIComponent(future)}`, { headers })).status).toBe(400)
+    expect((await app.request('/api/wikis/acme-sales/fleet?at=2020-01-01T00:00:00Z', { headers })).status).toBe(400)
+    expect((await app.request('/api/wikis/acme-sales/today?at=yesterday', { headers })).status).toBe(400)
+    expect((await app.request('/api/wikis/acme-sales/replay/26-09-2026', { headers })).status).toBe(400)
+  })
+})

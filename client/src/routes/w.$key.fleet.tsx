@@ -4,7 +4,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import type { PlanItem } from '@dashboard/shared/types'
 import { useConfig, useFleet } from '@/lib/api'
-import { clock, n } from '@/lib/format'
+import { clock, n, nowDate } from '@/lib/format'
 import { Card, ErrorNote, SectionLabel, Skeleton, Stat } from '@/components/ui'
 import { Orbit } from '@/components/Orbit'
 
@@ -75,7 +75,7 @@ function Fleet() {
             <div className="grid grid-cols-3 gap-3">
               <Stat value={<>{v.health.machinesSeen}<span className="font-normal text-ink-2">/{v.health.machinesTotal}</span></>} label={`${machineNoun[1]} seen today`} />
               <Stat value={<>{v.health.runsOk}<span className="font-normal text-ink-2">/{v.health.runsTotal}</span></>} label="runs succeeded" />
-              <Stat value={v.health.attention} label={`${v.health.attention === 1 ? channelNoun[0] : channelNoun[1]} need you`} tone={v.health.attention ? 'warn' : undefined} />
+              <Stat value={v.health.attention} label={v.health.attention === 1 ? `${channelNoun[0]} needs you` : `${channelNoun[1]} need you`} tone={v.health.attention ? 'warn' : undefined} />
             </div>
             {v.attention
               .filter((a) => a.severity !== 'info')
@@ -95,7 +95,7 @@ function Fleet() {
           </Card>
 
           <Card className="flex grow flex-col gap-3">
-            <SectionLabel right={<span className="text-xs text-ink-2">now {clock(new Date().toISOString())}</span>}>Today, hour by hour</SectionLabel>
+            <SectionLabel right={<span className="text-xs text-ink-2">now {clock(nowDate().toISOString())}</span>}>Today, hour by hour</SectionLabel>
             <Timeline plan={v.plan} />
             <div className="flex flex-col overflow-hidden">
               {v.plan.slice(0, 10).map((p, i) => (
@@ -124,10 +124,10 @@ function Mark({ status }: { status: PlanItem['status'] }) {
 }
 
 function Timeline({ plan }: { plan: PlanItem[] }) {
-  const start = new Date()
+  const start = nowDate()
   start.setHours(0, 0, 0, 0)
   const pct = (iso: string) => Math.min(100, Math.max(0, ((new Date(iso).getTime() - start.getTime()) / 86_400_000) * 100))
-  const nowPct = pct(new Date().toISOString())
+  const nowPct = pct(nowDate().toISOString())
   return (
     <div className="relative h-[34px]">
       <div className="absolute inset-x-0 top-[15px] h-1 rounded-sm bg-paper-2" />

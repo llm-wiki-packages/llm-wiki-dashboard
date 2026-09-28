@@ -42,6 +42,17 @@ Through the machine CLI, once the package is installed: `llm-wiki-cli dashboard`
 - **One name.** `shared/src/brand.ts` is the only place the product name
   appears. Change it there.
 
+## Replay
+
+**Replay** in the header walks a recorded day at 1 minute to 1 hour per
+second, and every screen follows the clock. The day comes from the wiki's git
+history: `git log` gives the commits and the runs they close, and
+`op show <session>` gives the paths each commit touched. Both answers are
+kept in a SQLite file under `$XDG_STATE_HOME/llm-wiki-dashboard/`, filled
+incrementally, so a day costs the CLI calls once. Demo mode replays a canned
+day as yesterday. A link can start it: `/w/<key>?replay=2026-09-26&speed=3600&autoplay=1`
+(`replay=1` picks the latest day).
+
 ## Customizing
 
 Fork. Change `shared/src/brand.ts` and `client/src/theme.css` first; that

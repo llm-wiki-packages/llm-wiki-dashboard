@@ -5,6 +5,10 @@
 
 import type {
   AreaSummary,
+  ItemKind,
+  ReplayDay,
+  ReplayDays,
+  ReplayEvent,
   Briefing,
   BriefingsView,
   ChannelSummary,
@@ -31,6 +35,9 @@ const at = (h: number, m = 0, dayOffset = 0): string => {
   return d.toISOString()
 }
 const midnight = () => at(0)
+const localDay = (d = new Date()) => {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const counts = (p: Partial<Counts>): Counts => ({ ...emptyCounts(), ...p })
 const sum = (list: Counts[]): Counts =>
@@ -43,15 +50,15 @@ const total = (c: Counts) => Object.values(c).reduce((a, b) => a + b, 0)
 const THIS_MACHINE = 'jmac23-3-local'
 
 const channels: ChannelSummary[] = [
-  { id: 'gmail-clients', name: 'Gmail · clients', kind: 'mailbox', host: 'mail.google.com', job: 'gmail-clients', area: 'Customers', machine: THIS_MACHINE, every: '30m', watched: true, state: 'running', stateNote: 'enriching 4 threads', counts: counts({ new: 6, updated: 2 }) },
-  { id: 'notion-crm', name: 'Notion · CRM', kind: 'database', host: 'notion.so', job: 'notion-crm', area: 'Customers', machine: THIS_MACHINE, every: '2h', watched: true, state: 'parked', stateNote: 'rate limited · retry in 18m', counts: counts({ updated: 2 }) },
-  { id: 'youtube-saas-growth', name: 'YouTube · SaaS Growth', kind: 'channel', host: 'youtube.com', job: 'youtube-saas-growth', area: 'Product learning', machine: 'studio-mini', every: '6h', watched: true, state: 'running', stateNote: 'transcribing 11 of 20', counts: counts({ new: 10, waiting: 10 }) },
-  { id: 'somecourse', name: 'somecourse.com · Pricing Strategy', kind: 'course', host: 'somecourse.com', job: 'somecourse-pricing', area: 'Product learning', machine: 'hetzner-01', every: '1d', watched: true, state: 'idle', counts: counts({ new: 3, updated: 1, distilled: 2 }) },
-  { id: 'rival-site', name: 'Site watch · rival.com', kind: 'site', host: 'rival.com', job: 'rival-pricing', area: 'Competitors', machine: 'hetzner-01', every: '1d', watched: true, state: 'idle', counts: counts({ updated: 2 }) },
-  { id: 'rss-industry', name: 'RSS · industry feed', kind: 'feed', host: 'feeds.example.com', job: 'rss-industry', area: 'Industry', machine: 'hetzner-01', every: '3h', watched: true, state: 'idle', counts: counts({ new: 4, distilled: 1 }) },
+  { id: 'gmail-clients', name: 'Gmail · clients', kind: 'mailbox', host: 'mail.google.com', job: 'gmail-clients', area: 'Customers', machine: THIS_MACHINE, every: '30m', watched: true, state: 'running', stateNote: 'enriching 4 threads', counts: counts({}) },
+  { id: 'notion-crm', name: 'Notion · CRM', kind: 'database', host: 'notion.so', job: 'notion-crm', area: 'Customers', machine: THIS_MACHINE, every: '2h', watched: true, state: 'parked', stateNote: 'rate limited · retry in 18m', counts: counts({}) },
+  { id: 'youtube-saas-growth', name: 'YouTube · SaaS Growth', kind: 'channel', host: 'youtube.com', job: 'youtube-saas-growth', area: 'Product learning', machine: 'studio-mini', every: '6h', watched: true, state: 'running', stateNote: 'transcribing 11 of 20', counts: counts({}) },
+  { id: 'somecourse', name: 'somecourse.com · Pricing Strategy', kind: 'course', host: 'somecourse.com', job: 'somecourse-pricing', area: 'Product learning', machine: 'hetzner-01', every: '1d', watched: true, state: 'idle', counts: counts({}) },
+  { id: 'rival-site', name: 'Site watch · rival.com', kind: 'site', host: 'rival.com', job: 'rival-pricing', area: 'Competitors', machine: 'hetzner-01', every: '1d', watched: true, state: 'idle', counts: counts({}) },
+  { id: 'rss-industry', name: 'RSS · industry feed', kind: 'feed', host: 'feeds.example.com', job: 'rss-industry', area: 'Industry', machine: 'hetzner-01', every: '3h', watched: true, state: 'idle', counts: counts({}) },
   { id: 'hubspot-pages', name: 'HubSpot · pages', kind: 'site', host: 'app.hubspot.com', job: 'hubspot-pages', area: 'Sales enablement', machine: THIS_MACHINE, every: '1d', watched: true, state: 'blocked', stateNote: 'no credential hubspot-api on this machine', counts: counts({}) },
   { id: 'calendar', name: 'Calendar', kind: 'calendar', host: 'calendar.google.com', job: 'calendar', area: 'Customers', machine: 'studio-mini', every: '1h', watched: true, state: 'idle', stateNote: 'quiet today', counts: counts({}) },
-  { id: 'distilled', name: 'Distilled by the wiki', kind: 'wiki', area: 'Sales enablement', watched: false, state: 'idle', counts: counts({ distilled: 8 }) },
+  { id: 'distilled', name: 'Distilled by the wiki', kind: 'wiki', area: 'Sales enablement', watched: false, state: 'idle', counts: counts({}) },
 ]
 
 const areaOrder = ['Customers', 'Product learning', 'Competitors', 'Industry', 'Sales enablement']
@@ -63,9 +70,9 @@ const headlines: Record<string, string> = {
   'Sales enablement': 'The playbook gained two sections overnight. HubSpot pages were not fetched.',
 }
 
-function areas(): AreaSummary[] {
+function areas(chans: ChannelSummary[] = channelsWithCounts()): AreaSummary[] {
   return areaOrder.map((name) => {
-    const chs = channels.filter((c) => c.area === name)
+    const chs = chans.filter((c) => c.area === name)
     const c = sum(chs.map((x) => x.counts))
     return { name, count: total(c), counts: c, channels: chs, headline: headlines[name] }
   })
@@ -84,6 +91,56 @@ const items: NewItem[] = [
   { path: 'sources/sites/rival/pricing.md', title: 'Rival Inc. · Pricing', kind: 'updated', when: at(3, 10), channel: 'rival-site', area: 'Competitors', sub: 'Team tier +12% · usage cap added' },
   { path: 'sources/rss/industry/procurement-cycles.md', title: 'Procurement cycles are lengthening again', kind: 'new', when: at(9, 20), channel: 'rss-industry', area: 'Industry', sub: 'distilled into Sales playbook › Timing' },
 ]
+
+// The rest of the day, so every count on the screens is a page you can open,
+// and a replay grows them one landing at a time.
+const more: Array<[string, ItemKind, number, number, string, string, string?]> = [
+  ['distilled', 'distilled', 0, 40, 'wiki/customers/northwind.md', 'Northwind', 'account page merged from 3 threads'],
+  ['distilled', 'distilled', 0, 52, 'wiki/customers/contoso.md', 'Contoso', 'renewal history updated'],
+  ['distilled', 'distilled', 1, 5, 'wiki/competitors/rival.md', 'Rival Inc.', 'pricing history table extended'],
+  ['distilled', 'distilled', 1, 18, 'wiki/industry/procurement.md', 'Procurement cycles', 'new section from 2 articles'],
+  ['distilled', 'distilled', 1, 30, 'wiki/playbook/timing.md', 'Sales playbook: timing', 'quarter-end guidance revised'],
+  ['rival-site', 'updated', 3, 12, 'sources/sites/rival/plans-faq.md', 'Rival Inc. · Plans FAQ', 'usage cap explained in a new answer'],
+  ['rss-industry', 'new', 6, 15, 'sources/rss/industry/seat-based-pricing.md', 'Is seat-based pricing dying?'],
+  ['gmail-clients', 'new', 8, 12, 'sources/gmail/clients/fabrikam-pilot.md', 'Fabrikam · pilot kickoff notes', '4 messages · kickoff on Thursday'],
+  ['rss-industry', 'new', 9, 5, 'sources/rss/industry/cfo-survey.md', 'CFO survey: software budgets flat for 2027'],
+  ['gmail-clients', 'new', 9, 40, 'sources/gmail/clients/tailspin-invoice.md', 'Tailspin · invoice question', '1 message · PO number missing'],
+  ['rss-industry', 'distilled', 9, 50, 'wiki/industry/budgets.md', 'Industry: software budgets', 'merged from the CFO survey'],
+  ['gmail-clients', 'updated', 10, 55, 'sources/gmail/clients/northwind-security.md', 'Northwind · security questionnaire', 'the thread gained a deadline'],
+  ['gmail-clients', 'new', 11, 30, 'sources/gmail/clients/litware-expansion.md', 'Litware · expansion to the EU team', '2 messages · 40 seats'],
+  ['rss-industry', 'new', 12, 30, 'sources/rss/industry/usage-billing.md', 'Usage billing, two years in'],
+  ['notion-crm', 'updated', 12, 40, 'sources/notion/crm/contoso.md', 'Contoso (CRM record)', 'seat count corrected'],
+  ['distilled', 'distilled', 13, 10, 'wiki/customers/renewals-q4.md', 'Q4 renewals', 'two accounts added to the list'],
+  ['gmail-clients', 'updated', 15, 20, 'sources/gmail/clients/contoso-seats.md', 'Contoso · seat count follow-up', 'reply from procurement'],
+  ['somecourse', 'new', 16, 20, 'sources/scrapes/somecourse/lesson-5-price-fences.md', 'Lesson 5 — price fences', 'new lesson · 1,400 words'],
+  ['somecourse', 'new', 16, 31, 'sources/scrapes/somecourse/lesson-8-raising-prices.md', 'Lesson 8 — raising prices', 'new lesson · 2,100 words'],
+  ['somecourse', 'distilled', 16, 40, 'wiki/playbook/discounting.md', 'Sales playbook: discounting', 'merged from lesson 7'],
+  ['distilled', 'distilled', 16, 45, 'wiki/playbook/pricing-power.md', 'Sales playbook: pricing power', 'merged from ep. 214 and lesson 8'],
+  ['gmail-clients', 'new', 17, 45, 'sources/gmail/clients/adventure-works-intro.md', 'Adventure Works · intro from a partner', '1 message · wants a demo next week'],
+  ['distilled', 'distilled', 20, 10, 'wiki/learning/saas-growth.md', 'SaaS Growth: what we took from it', '6 episodes summarized'],
+]
+const episodes = ['Land and expand, revisited', 'The first sales hire', 'Churn is a pricing problem', 'Annual vs monthly', 'Pricing pages that convert', 'Free trials without regret', 'Expansion revenue math', 'When to raise prices', 'Enterprise without the enterprise team', 'Selling to finance', 'The renewal calendar', 'Discounts that do not stick', 'Packaging for PLG', 'Board metrics that matter', 'Hiring your first CSM', 'The pricing committee', 'Reference customers']
+episodes.forEach((title, i) => {
+  const ep = 195 + i
+  const waiting = i < 9
+  // The backlog arrives in the evening: 8 transcribed in the afternoon, 9 still queued after 19:45.
+  const minute = waiting ? 19 * 60 + 45 + i * 8 : 17 * 60 + 5 + (i - 9) * 13
+  more.push(['youtube-saas-growth', waiting ? 'waiting' : 'new', Math.floor(minute / 60), minute % 60, `sources/youtube/saas-growth/ep-${ep}.md`, `${title} · ep. ${ep}`, waiting ? 'video captured · transcription queued on studio-mini' : 'transcript'])
+})
+for (const [channel, kind, h, m, path, title, sub] of more) {
+  const area = channels.find((c) => c.id === channel)?.area
+  items.push({ path, title, kind, when: at(h, m), channel, area, sub })
+}
+items.sort((a, b) => b.when.localeCompare(a.when))
+
+/** Channel counts are the items' own, up to an instant when replaying. */
+function channelsWithCounts(upTo?: string): ChannelSummary[] {
+  return channels.map((c) => {
+    const n = counts({})
+    for (const it of items) if (it.channel === c.id && (!upTo || it.when <= upTo)) n[it.kind] += 1
+    return { ...c, counts: n }
+  })
+}
 
 const now: NowItem[] = [
   { id: 't-8f21', what: 'Enriching 4 client threads', who: 'Gmail · clients', machine: THIS_MACHINE, stage: 'enrich', state: 'running', since: at(21, 2) },
@@ -157,16 +214,107 @@ function wiki(key: string): WikiSummary {
   return w
 }
 
+const RECENT_MS = 15 * 60_000
+const areaWord = (k: number) => `${k} area${k === 1 ? '' : 's'}`
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+/** The canned day as it stood at `at`: pages that had landed, channels working while theirs land, the plan split at the instant. */
+/** The canned day replays as yesterday, so the whole of it lies in the past. */
+const DAY_MS = 86_400_000
+const back = (iso: string) => (iso ? new Date(new Date(iso).getTime() - DAY_MS).toISOString() : iso)
+const yesterday = () => localDay(new Date(Date.now() - DAY_MS))
+
+function dayAt(replayAt: string) {
+  // Work in the canned day's own times, then move every answer back a day.
+  const at = new Date(new Date(replayAt).getTime() + DAY_MS).toISOString()
+  const from = new Date(new Date(at).getTime() - RECENT_MS).toISOString()
+  const recent = new Map<string, number>()
+  for (const it of items) if (it.when <= at && it.when > from) recent.set(it.channel, (recent.get(it.channel) ?? 0) + 1)
+  const chans = channelsWithCounts(at).map<ChannelSummary>((c) => {
+    const n = recent.get(c.id) ?? 0
+    if (n) return { ...c, state: 'running', stateNote: `${n} captured in the last 15 minutes` }
+    return { ...c, state: c.state === 'blocked' ? 'blocked' : 'idle', stateNote: c.state === 'blocked' ? c.stateNote : undefined }
+  })
+  const dayPlan = plan.map<PlanItem>((p) => {
+    if (p.time > at) return { ...p, status: 'upcoming' }
+    return p.status === 'upcoming' ? { ...p, status: 'done' } : p
+  })
+  const nowRows: NowItem[] = chans
+    .filter((c) => c.state === 'running')
+    .map((c) => ({ id: `ch-${c.id}`, what: `Capturing · ${c.name}`, who: c.name, machine: c.machine ?? '', stage: 'harvest', state: 'running', since: at, note: c.stateNote }))
+  for (const p of dayPlan) if (p.status === 'running') nowRows.unshift({ id: `run-${p.bundle}`, what: p.text, who: p.bundle, machine: p.machine ?? '', stage: p.bundle, state: 'running', since: p.time })
+  const a = areas(chans).filter((x) => x.count > 0 || x.channels.some((c) => c.state === 'running'))
+  const c = sum(a.map((x) => x.counts))
+  const runningBy = new Map<string, number>()
+  for (const r of nowRows) runningBy.set(r.machine, (runningBy.get(r.machine) ?? 0) + 1)
+  return {
+    chans,
+    dayPlan: dayPlan.map((p) => ({ ...p, time: back(p.time) })),
+    nowRows: nowRows.map((r) => ({ ...r, since: back(r.since) })),
+    areas: a,
+    counts: c,
+    runningBy,
+    items: items.filter((it) => it.when <= at).map((it) => ({ ...it, when: back(it.when) })),
+    briefing: reports[0] && reports[0].when <= at ? { ...reports[0], when: back(reports[0].when) } : undefined,
+  }
+}
+
 export function fixturesSource(): Source {
   const a = areas()
   const totalCounts = sum(a.map((x) => x.counts))
+  const whatsNewNow = (key: string): NewView => ({
+    wiki: wiki(key),
+    since: midnight(),
+    totals: { pages: total(totalCounts), counts: totalCounts },
+    areas: a,
+    items,
+  })
+  const fleetNow = (key: string): FleetView => ({
+    wiki: wiki(key),
+    machines,
+    channels: channelsWithCounts(),
+    health: { machinesSeen: 3, machinesTotal: 3, runsOk: 90, runsTotal: 91, attention: 1 },
+    attention: [
+      { id: 'hubspot-cred', title: 'HubSpot needs a credential on jmac23-3', detail: 'llm-wiki-cli wiki acme-sales credential set hubspot-api', severity: 'attention', action: { label: 'Add it', href: '#' } },
+    ],
+    plan,
+  })
   return {
     kind: 'fixtures',
     opsVersion: async () => '0.3.7',
     roots: async (): Promise<WikiRoot[]> => wikiList.map(({ key, name, path }) => ({ key, name, path })),
     wikis: async () => wikiList,
-    today: async (key): Promise<TodayView> => {
+    replayDays: async (key): Promise<ReplayDays> => {
+      wiki(key)
+      return { days: [{ date: yesterday(), commits: items.length + plan.length }] }
+    },
+    replayDay: async (key, date): Promise<ReplayDay> => {
+      wiki(key)
+      const events: ReplayEvent[] = [
+        ...items.map<ReplayEvent>((it) => ({ at: it.when, kind: 'page', title: it.title, detail: it.kind, path: it.path, channel: channels.find((c) => c.id === it.channel)?.name })),
+        ...plan.filter((p) => p.status !== 'upcoming').map<ReplayEvent>((p) => ({ at: p.time, kind: p.status === 'running' ? 'run-start' : 'run-end', title: p.text, detail: p.status === 'failed' ? 'failed' : 'ok', machine: p.machine })),
+      ]
+        .map((e) => ({ ...e, at: back(e.at) }))
+        .sort((x, y) => x.at.localeCompare(y.at))
+      return { date, start: back(midnight()), end: midnight(), events: date === yesterday() ? events : [] }
+    },
+    today: async (key, when): Promise<TodayView> => {
       const w = wiki(key)
+      if (when) {
+        const d = dayAt(when)
+        const n = total(d.counts)
+        return {
+          wiki: { ...w, running: d.nowRows.length, nextDue: undefined },
+          since: back(midnight()),
+          totals: { pages: n, areas: d.areas.filter((x) => x.count > 0).length, counts: d.counts },
+          lede: n ? `By ${hhmm(when)} your wiki had gained ${n} page${n === 1 ? '' : 's'} across ${areaWord(d.areas.filter((x) => x.count > 0).length)}.` : `Nothing new yet by ${hhmm(when)}.`,
+          areas: d.areas,
+          now: d.nowRows,
+          plan: d.dayPlan,
+          attention: d.dayPlan.filter((p) => p.status === 'failed').map((p) => ({ id: `run-${p.bundle}`, title: p.text, detail: `on ${p.machine ?? 'a machine'}`, severity: 'failing' as const })),
+          briefing: d.briefing,
+        }
+      }
       return {
         wiki: w,
         since: midnight(),
@@ -181,23 +329,24 @@ export function fixturesSource(): Source {
         briefing: reports[0],
       }
     },
-    whatsNew: async (key): Promise<NewView> => ({
-      wiki: wiki(key),
-      since: midnight(),
-      totals: { pages: total(totalCounts), counts: totalCounts },
-      areas: a,
-      items,
-    }),
-    fleet: async (key): Promise<FleetView> => ({
-      wiki: wiki(key),
-      machines,
-      channels,
-      health: { machinesSeen: 3, machinesTotal: 3, runsOk: 90, runsTotal: 91, attention: 1 },
-      attention: [
-        { id: 'hubspot-cred', title: 'HubSpot needs a credential on jmac23-3', detail: 'llm-wiki-cli wiki acme-sales credential set hubspot-api', severity: 'attention', action: { label: 'Add it', href: '#' } },
-      ],
-      plan,
-    }),
+    whatsNew: async (key, _since, when): Promise<NewView> => {
+      if (!when) return whatsNewNow(key)
+      const d = dayAt(when)
+      return { wiki: { ...wiki(key), running: d.nowRows.length, nextDue: undefined }, since: back(midnight()), totals: { pages: total(d.counts), counts: d.counts }, areas: d.areas, items: d.items }
+    },
+    fleet: async (key, when): Promise<FleetView> => {
+      if (!when) return fleetNow(key)
+      const d = dayAt(when)
+      const done = d.dayPlan.filter((p) => p.status === 'done' || p.status === 'failed')
+      return {
+        wiki: { ...wiki(key), running: d.nowRows.length, nextDue: undefined },
+        machines: machines.map((m) => ({ ...m, running: d.runningBy.get(m.name) ?? 0, state: d.runningBy.get(m.name) ? 'live' : 'idle' })),
+        channels: d.chans,
+        health: { machinesSeen: 3, machinesTotal: 3, runsOk: done.filter((p) => p.status === 'done').length, runsTotal: done.length, attention: d.chans.filter((c) => c.state === 'blocked').length },
+        attention: [],
+        plan: d.dayPlan,
+      }
+    },
     briefings: async (key): Promise<BriefingsView> => ({ wiki: wiki(key), reports }),
     briefing: async (key, id) => {
       wiki(key)

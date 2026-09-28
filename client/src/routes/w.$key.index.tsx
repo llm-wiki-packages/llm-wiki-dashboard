@@ -5,7 +5,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { FileText, AlertCircle } from 'lucide-react'
 import type { AreaSummary, Counts, NowItem, PlanItem } from '@dashboard/shared/types'
 import { useConfig, useToday } from '@/lib/api'
-import { clock, greeting, plural, timeAgo, n } from '@/lib/format'
+import { clock, greeting, n, nowDate, plural, timeAgo } from '@/lib/format'
 import { Card, ChannelDot, Dot, ErrorNote, Empty, Pill, SectionLabel, Skeleton } from '@/components/ui'
 
 export const Route = createFileRoute('/w/$key/')({ component: Today })
@@ -107,7 +107,7 @@ function Today() {
           </Card>
 
           <Card className="flex grow flex-col gap-3">
-            <SectionLabel right={<span className="text-xs text-ink-2">{clock(new Date().toISOString())}</span>}>Today's plan</SectionLabel>
+            <SectionLabel right={<span className="text-xs text-ink-2">{clock(nowDate().toISOString())}</span>}>Today's plan</SectionLabel>
             {v.plan.length === 0 ? (
               <div className="text-sm text-ink-2">No runs recorded today and nothing scheduled.</div>
             ) : (

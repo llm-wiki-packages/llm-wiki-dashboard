@@ -215,6 +215,32 @@ export interface TraceRow {
 
 export type ViewName = 'today' | 'new' | 'fleet' | 'briefings'
 
+/** One thing that happened on a replayed day: a page landing, or a run starting or ending. */
+export interface ReplayEvent {
+  at: string
+  kind: 'page' | 'run-start' | 'run-end'
+  title: string
+  /** A page's kind, or a run's outcome. */
+  detail?: string
+  path?: string
+  /** The channel's display name, for a page. */
+  channel?: string
+  machine?: string
+}
+
+/** A recorded day, in the order it happened. `start`/`end` bound the local day. */
+export interface ReplayDay {
+  date: string
+  start: string
+  end: string
+  events: ReplayEvent[]
+}
+
+/** Days with something to replay, newest first, with how many commits each carries. */
+export interface ReplayDays {
+  days: Array<{ date: string; commits: number }>
+}
+
 /** What the SSE stream at /api/events carries. */
 export type DashboardEvent =
   | { type: 'hello'; now: string; source: DataSource }

@@ -1,7 +1,16 @@
 // Small formatting helpers. Times are shown relative when recent and as a
-// clock when today, because that is how a person reads "when".
+// clock when today, because that is how a person reads "when". "Now" is the
+// replay clock while a day is replaying, so every relative time reads as of it.
 
-export function timeAgo(iso: string | null | undefined, now = Date.now()): string {
+let override: (() => number) | null = null
+/** Replay sets this while it runs; null restores the wall clock. */
+export function setClockOverride(fn: (() => number) | null): void {
+  override = fn
+}
+export const nowMs = (): number => (override ? override() : Date.now())
+export const nowDate = (): Date => new Date(nowMs())
+
+export function timeAgo(iso: string | null | undefined, now = nowMs()): string {
   if (!iso) return ''
   const t = new Date(iso).getTime()
   if (Number.isNaN(t)) return ''
@@ -30,7 +39,7 @@ export function dayLabel(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  const today = new Date()
+  const today = nowDate()
   const sameDay = d.toDateString() === today.toDateString()
   if (sameDay) return `today ${clock(iso)}`
   const yesterday = new Date(today)
@@ -39,11 +48,11 @@ export function dayLabel(iso: string | null | undefined): string {
   return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-export function longDate(d = new Date()): string {
+export function longDate(d = nowDate()): string {
   return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-export function greeting(d = new Date()): string {
+export function greeting(d = nowDate()): string {
   const h = d.getHours()
   if (h < 5) return 'Good night'
   if (h < 12) return 'Good morning'

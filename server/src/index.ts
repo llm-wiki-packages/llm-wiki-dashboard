@@ -6,9 +6,10 @@ import { config, url } from './config/index.js'
 import { spawnRunner } from './data/cli.js'
 import { fixturesSource } from './data/fixtures.js'
 import { liveSource } from './data/live.js'
+import { Timeline, openStore } from './data/timeline.js'
 import { EventHub } from './routes/events.js'
 
-const source = config.source === 'fixtures' ? fixturesSource() : liveSource(spawnRunner())
+const source = config.source === 'fixtures' ? fixturesSource() : liveSource(spawnRunner(), new Timeline(spawnRunner(), openStore()))
 const hub = new EventHub(source)
 const app = createApp(source, hub)
 

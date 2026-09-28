@@ -10,6 +10,8 @@ import type {
   Facets,
   NewView,
   PageView,
+  ReplayDay,
+  ReplayDays,
   Resolved,
   SearchParams,
   SearchView,
@@ -29,9 +31,13 @@ export interface Source {
   opsVersion(): Promise<string | null>
   roots(): Promise<WikiRoot[]>
   wikis(): Promise<WikiSummary[]>
-  today(key: string): Promise<TodayView>
-  whatsNew(key: string, since: Since): Promise<NewView>
-  fleet(key: string): Promise<FleetView>
+  /** With `at`, each of these three answers as the screen stood at that instant of a recorded day. */
+  today(key: string, at?: string): Promise<TodayView>
+  whatsNew(key: string, since: Since, at?: string): Promise<NewView>
+  fleet(key: string, at?: string): Promise<FleetView>
+  /** Days with commits to replay, and one day's events in order. */
+  replayDays(key: string): Promise<ReplayDays>
+  replayDay(key: string, date: string): Promise<ReplayDay>
   briefings(key: string): Promise<BriefingsView>
   briefing(key: string, id: string): Promise<Briefing | null>
   /** A page by its wiki-relative path, for the reader. */

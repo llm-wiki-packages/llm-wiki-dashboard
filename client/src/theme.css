@@ -402,3 +402,35 @@
 .rdp-root .rdp-chevron {
   fill: var(--color-ink-2);
 }
+
+/* Replay: the scrubber is an invisible range over a drawn track, with a visible thumb. */
+.replay-scrub {
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.replay-scrub::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-card);
+  box-shadow: 0 0 0 1px var(--color-line-2);
+}
+.replay-scrub::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-card);
+}
+.replay-ticker {
+  animation: replay-in 400ms ease-out;
+}
+/* Slide only: a background tab pauses animations, and a paused fade would hide the line. */
+@keyframes replay-in {
+  from {
+    transform: translateY(6px);
+  }
+}

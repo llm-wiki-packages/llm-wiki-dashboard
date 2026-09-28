@@ -2,7 +2,7 @@
 // Everything else (the trace rows) is kept in a small ring for a future log
 // panel; nothing renders it yet.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { DashboardEvent, TraceRow } from '@dashboard/shared/types'
 
@@ -12,9 +12,12 @@ export interface LiveState {
   recent: Array<{ wiki: string; row: TraceRow }>
 }
 
-export function useLiveEvents(): LiveState {
+/** While `paused` (a replay is running), a run's `changed` hint does not refetch the screens. */
+export function useLiveEvents(paused = false): LiveState {
   const qc = useQueryClient()
   const [state, setState] = useState<LiveState>({ connected: false, lastEventAt: null, recent: [] })
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
 
   useEffect(() => {
     const es = new EventSource('/api/events', { withCredentials: true })
@@ -25,7 +28,7 @@ export function useLiveEvents(): LiveState {
         if (ev.type === 'trace') next.recent = [{ wiki: ev.wiki, row: ev.row }, ...s.recent].slice(0, 50)
         return next
       })
-      if (ev.type === 'changed') {
+      if (ev.type === 'changed' && !pausedRef.current) {
         for (const view of ev.views) void qc.invalidateQueries({ queryKey: ['wiki', ev.wiki, view] })
         void qc.invalidateQueries({ queryKey: ['wikis'] })
       }

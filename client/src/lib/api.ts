@@ -2,7 +2,7 @@
 // around them. Query keys are ['wiki', key, view] so the event stream can
 // invalidate a screen by name.
 
-import { queryOptions, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query'
 import type {
   AppConfig,
   Briefing,
@@ -17,6 +17,7 @@ import type {
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
+import { useReplayAt } from './replay'
 
 export class ApiError extends Error {
   constructor(
@@ -42,18 +43,32 @@ async function get<T>(path: string): Promise<T> {
   return (await res.json()) as T
 }
 
+/** A replayed instant never changes, so its answer is kept; the previous screen shows while the next loads. */
+const replayed = (at: string | null | undefined) =>
+  at ? { staleTime: Infinity, refetchInterval: false as const, placeholderData: keepPreviousData } : {}
+const atParam = (at: string | null | undefined, sep: '?' | '&') => (at ? `${sep}at=${encodeURIComponent(at)}` : '')
+
 export const q = {
   config: () => queryOptions({ queryKey: ['config'], queryFn: () => get<AppConfig>('/config'), staleTime: Infinity }),
   wikis: () => queryOptions({ queryKey: ['wikis'], queryFn: () => get<WikiSummary[]>('/wikis') }),
-  today: (key: string) =>
-    queryOptions({ queryKey: ['wiki', key, 'today'], queryFn: () => get<TodayView>(`/wikis/${key}/today`) }),
-  whatsNew: (key: string, since: string) =>
+  today: (key: string, at?: string | null) =>
     queryOptions({
-      queryKey: ['wiki', key, 'new', since],
-      queryFn: () => get<NewView>(`/wikis/${key}/new?since=${encodeURIComponent(since)}`),
+      queryKey: ['wiki', key, 'today', at ?? 'live'],
+      queryFn: () => get<TodayView>(`/wikis/${key}/today${atParam(at, '?')}`),
+      ...replayed(at),
     }),
-  fleet: (key: string) =>
-    queryOptions({ queryKey: ['wiki', key, 'fleet'], queryFn: () => get<FleetView>(`/wikis/${key}/fleet`) }),
+  whatsNew: (key: string, since: string, at?: string | null) =>
+    queryOptions({
+      queryKey: ['wiki', key, 'new', since, at ?? 'live'],
+      queryFn: () => get<NewView>(`/wikis/${key}/new?since=${encodeURIComponent(since)}${atParam(at, '&')}`),
+      ...replayed(at),
+    }),
+  fleet: (key: string, at?: string | null) =>
+    queryOptions({
+      queryKey: ['wiki', key, 'fleet', at ?? 'live'],
+      queryFn: () => get<FleetView>(`/wikis/${key}/fleet${atParam(at, '?')}`),
+      ...replayed(at),
+    }),
   briefings: (key: string) =>
     queryOptions({
       queryKey: ['wiki', key, 'briefings'],
@@ -95,9 +110,9 @@ export const q = {
 
 export const useConfig = () => useQuery(q.config())
 export const useWikis = () => useQuery(q.wikis())
-export const useToday = (key: string) => useQuery(q.today(key))
-export const useWhatsNew = (key: string, since: string) => useQuery(q.whatsNew(key, since))
-export const useFleet = (key: string) => useQuery(q.fleet(key))
+export const useToday = (key: string) => useQuery(q.today(key, useReplayAt()))
+export const useWhatsNew = (key: string, since: string) => useQuery(q.whatsNew(key, since, useReplayAt()))
+export const useFleet = (key: string) => useQuery(q.fleet(key, useReplayAt()))
 export const useBriefings = (key: string) => useQuery(q.briefings(key))
 export const useBriefing = (key: string, id: string | undefined) =>
   useQuery({ ...q.briefing(key, id ?? ''), enabled: Boolean(id) })

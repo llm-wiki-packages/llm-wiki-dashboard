@@ -2,7 +2,7 @@
 # Start the server inside a nono jail. The flags below are the server's
 # sandbox profile: what it may read (its own code, the registry, each wiki),
 # what it may write (each wiki's machine-local runtime tree, for the trace
-# row every CLI call files), and that it may listen on one loopback port and
+# row every CLI call files, and its own replay cache), and that it may listen on one loopback port and
 # reach nothing else on the network.
 #
 # The wiki list comes from the machine registry at start, so a wiki
@@ -27,6 +27,10 @@ CLI_HOME=$(cd "$(dirname "$CLI_REAL")/.." && pwd)
 REGISTRY_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/llm-wiki
 STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/llm-wiki
 
+# Replay's timeline cache: the one place outside a wiki the server writes.
+DASH_STATE=${DASHBOARD_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/llm-wiki-dashboard}
+mkdir -p "$DASH_STATE"
+
 NODE_BIN=$(command -v node)
 NODE_HOME=$(cd "$(dirname "$(readlink -f "$NODE_BIN")")/.." && pwd)
 
@@ -38,6 +42,7 @@ set -- \
   --read "$CLI_HOME" \
   --read "$REGISTRY_DIR" \
   --read "$STATE_DIR" \
+  --allow "$DASH_STATE" \
   --allow "${TMPDIR:-/tmp}"
 
 # An editable install keeps the CLI's code outside its venv; each .pth line
@@ -47,6 +52,11 @@ for pth in "$CLI_HOME"/lib/python*/site-packages/*.pth; do
   while IFS= read -r line; do
     case "$line" in /*) [ -d "$line" ] && set -- "$@" --read "$line" ;; esac
   done < "$pth"
+done
+
+# The CLI runs git, and git reads the user's config before anything else.
+for f in "$HOME/.gitconfig" "${XDG_CONFIG_HOME:-$HOME/.config}/git"; do
+  if [ -f "$f" ]; then set -- "$@" --read-file "$f"; elif [ -d "$f" ]; then set -- "$@" --read "$f"; fi
 done
 
 # One read grant per wiki, plus a write grant on its runtime tree.

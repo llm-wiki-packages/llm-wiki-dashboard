@@ -18,11 +18,17 @@ export interface Args {
   k?: number
   /** `kind` → value, already validated against SEARCH_KINDS; a leading `-` on the kind negates. */
   filters?: Record<string, string>
+  /** A commit sha, for `git log` since a point. */
+  sha?: string
+  /** A session id or op name, for `op show`. */
+  target?: string
 }
 
 const KEY = /^[a-z0-9][a-z0-9_-]{0,63}$/
 const SINCE = /^\d{1,3}[hd]$/
 const DIR = /^[a-z][a-z0-9_-]{0,63}$/
+const SHA = /^[0-9a-f]{7,40}$/
+const TARGET = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 const REL = /^(?!\.)(?!.*\.\.)(?!\/)[A-Za-z0-9._\-/ ()&$'!,+]{1,400}\.md$/
 
 function key(v: string | undefined): string {
@@ -72,6 +78,20 @@ function text(v: string | undefined): string {
   return t
 }
 
+/** `git log` bounded by a sha when one is given, else by an age. */
+function logSince(a: Args): string {
+  if (a.sha !== undefined) {
+    if (!SHA.test(a.sha)) throw new CliError(`bad sha: ${a.sha}`, 'args')
+    return `filter=since:${a.sha}`
+  }
+  return since(a.since, '30d')
+}
+
+function target(v: string | undefined): string {
+  if (!v || !TARGET.test(v)) throw new CliError(`bad op show target: ${String(v)}`, 'args')
+  return v
+}
+
 function rel(v: string | undefined): string {
   if (!v || !REL.test(v)) throw new CliError(`bad page path: ${String(v)}`, 'args')
   return v
@@ -94,6 +114,8 @@ export const VERBS = {
   'wiki.op.logs': (a: Args) => wiki(a, 'op', 'logs', limit(a.limit, 50)),
   'wiki.git.changed': (a: Args) =>
     wiki(a, 'git', 'changed', ...dirs(a.dirs, ['sources', 'wiki', 'research']), since(a.since, '1d')),
+  'wiki.git.log': (a: Args) => wiki(a, 'git', 'log', logSince(a)),
+  'wiki.op.show': (a: Args) => wiki(a, 'op', 'show', target(a.target)),
   'wiki.page.read': (a: Args) => wiki(a, 'page', 'read', rel(a.path)),
   // The question goes after `--`, so a question starting with a dash is never read as a flag.
   'wiki.search.query': (a: Args) => [

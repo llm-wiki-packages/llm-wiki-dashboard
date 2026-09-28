@@ -51,6 +51,18 @@ describe('VERBS', () => {
   })
 })
 
+describe('timeline argv', () => {
+  it('bounds git log by a sha or an age, and names an op show target', () => {
+    expect(cli.VERBS['wiki.git.log']({ wiki: 'kb', sha: 'abc1234' })).toEqual(['wiki', '--read-only', 'kb', 'git', 'log', 'filter=since:abc1234', '--json'])
+    expect(cli.VERBS['wiki.git.log']({ wiki: 'kb' })).toContain('filter=since:30d')
+    expect(cli.VERBS['wiki.op.show']({ wiki: 'kb', target: 'ccc0abd3-1f61' })).toEqual(['wiki', '--read-only', 'kb', 'op', 'show', 'ccc0abd3-1f61', '--json'])
+  })
+  it('refuses a sha that is not hex and a target that could read as a flag', () => {
+    expect(() => cli.VERBS['wiki.git.log']({ wiki: 'kb', sha: 'HEAD~1' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.op.show']({ wiki: 'kb', target: '--all' })).toThrow(cli.CliError)
+  })
+})
+
 describe('search argv', () => {
   it('puts the question after -- and each filter as filter=kind:value', () => {
     expect(cli.VERBS['wiki.search.query']({ wiki: 'kb', text: '-what about renewals?', k: 25, filters: { area: 'Customers', '-tag': 'draft', captured_from: '2026-09-01' } })).toEqual([

@@ -47,6 +47,12 @@ const Env = z.object({
   LLM_WIKI_MACHINE_CONFIG: z
     .string()
     .default(resolve(homedir(), '.config/llm-wiki/config.toml')),
+  /** Where the replay timeline's SQLite file lives. `:memory:` keeps it in the process only. */
+  DASHBOARD_STATE_DIR: z
+    .string()
+    .default(resolve(process.env.XDG_STATE_HOME || resolve(homedir(), '.local/state'), 'llm-wiki-dashboard')),
+  /** How many days of history replay offers. */
+  DASHBOARD_REPLAY_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   DASHBOARD_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 })
 
@@ -81,6 +87,8 @@ export const config = {
   clientDistPresent: existsSync(resolve(env.DASHBOARD_CLIENT_DIST, 'index.html')),
   machineConfigPath: env.LLM_WIKI_MACHINE_CONFIG,
   logLevel: env.DASHBOARD_LOG_LEVEL,
+  stateDir: env.DASHBOARD_STATE_DIR,
+  replayDays: env.DASHBOARD_REPLAY_DAYS,
   /** Every CLI child runs under the read floor, whatever mode the server is in.
    *  Write mode, when it exists, lifts this per route, never globally. */
   cliEnv: {

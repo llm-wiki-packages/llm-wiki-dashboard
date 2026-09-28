@@ -1,6 +1,6 @@
 // The JSON routes. Each one picks a view off the source; the wiki key is
 // checked against the registry before anything else runs, and the only
-// free-text inputs (`since`, a briefing id) are validated here.
+// free-text inputs (`since`, a replay `at` or date, a briefing id) are validated here.
 
 import { Hono } from 'hono'
 import { brand } from '@dashboard/shared/brand'
@@ -12,6 +12,18 @@ import { NotFound, type Source } from '../data/source.js'
 
 const SINCE = /^\d{1,3}[hd]$/
 const ID = /^[A-Za-z0-9_-]{1,512}$/
+const DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/** A replay instant: an ISO time inside the replay window, never in the future. */
+function atOf(raw: string | undefined): string | undefined | null {
+  if (raw === undefined || raw === '') return undefined
+  const t = Date.parse(raw)
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(raw) || Number.isNaN(t)) return null
+  if (t > Date.now() + 60_000 || t < Date.now() - (config.replayDays + 1) * 86_400_000) return null
+  return new Date(t).toISOString()
+}
+const BAD_AT = { error: `at must be an ISO time within the last ${config.replayDays} days` }
+
 const REL = /^(?!\.)(?!.*\.\.)(?!\/)[A-Za-z0-9._\-/ ()&$'!,+—–]{1,400}\.md$/
 
 export function apiRoutes(source: Source): Hono {
@@ -69,15 +81,33 @@ export function apiRoutes(source: Source): Hono {
 
   api.get('/wikis', async (c) => c.json(await source.wikis()))
 
-  api.get('/wikis/:key/today', async (c) => c.json(await source.today(c.req.param('key'))))
+  api.get('/wikis/:key/today', async (c) => {
+    const at = atOf(c.req.query('at'))
+    if (at === null) return c.json(BAD_AT, 400)
+    return c.json(await source.today(c.req.param('key'), at))
+  })
 
   api.get('/wikis/:key/new', async (c) => {
     const raw = c.req.query('since') ?? '1d'
     if (!SINCE.test(raw)) return c.json({ error: 'since must look like 6h or 7d' }, 400)
-    return c.json(await source.whatsNew(c.req.param('key'), raw as Since))
+    const at = atOf(c.req.query('at'))
+    if (at === null) return c.json(BAD_AT, 400)
+    return c.json(await source.whatsNew(c.req.param('key'), raw as Since, at))
   })
 
-  api.get('/wikis/:key/fleet', async (c) => c.json(await source.fleet(c.req.param('key'))))
+  api.get('/wikis/:key/fleet', async (c) => {
+    const at = atOf(c.req.query('at'))
+    if (at === null) return c.json(BAD_AT, 400)
+    return c.json(await source.fleet(c.req.param('key'), at))
+  })
+
+  api.get('/wikis/:key/replay', async (c) => c.json(await source.replayDays(c.req.param('key'))))
+
+  api.get('/wikis/:key/replay/:date', async (c) => {
+    const date = c.req.param('date')
+    if (!DATE.test(date) || Number.isNaN(Date.parse(date))) return c.json({ error: 'date must be YYYY-MM-DD' }, 400)
+    return c.json(await source.replayDay(c.req.param('key'), date))
+  })
 
   api.get('/wikis/:key/briefings', async (c) => c.json(await source.briefings(c.req.param('key'))))
 
