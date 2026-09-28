@@ -27,14 +27,27 @@ CLI_HOME=$(cd "$(dirname "$CLI_REAL")/.." && pwd)
 REGISTRY_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/llm-wiki
 STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/llm-wiki
 
+NODE_BIN=$(command -v node)
+NODE_HOME=$(cd "$(dirname "$(readlink -f "$NODE_BIN")")/.." && pwd)
+
 set -- \
   --block-net \
-  --listen-port "$PORT" \
+  --open-port "$PORT" \
   --read "$ROOT" \
+  --read "$NODE_HOME" \
   --read "$CLI_HOME" \
   --read "$REGISTRY_DIR" \
   --read "$STATE_DIR" \
   --allow "${TMPDIR:-/tmp}"
+
+# An editable install keeps the CLI's code outside its venv; each .pth line
+# that names a directory gets a read grant.
+for pth in "$CLI_HOME"/lib/python*/site-packages/*.pth; do
+  [ -f "$pth" ] || continue
+  while IFS= read -r line; do
+    case "$line" in /*) [ -d "$line" ] && set -- "$@" --read "$line" ;; esac
+  done < "$pth"
+done
 
 # One read grant per wiki, plus a write grant on its runtime tree.
 WIKIS=$("$CLI" machine wikis ls --json | node -e '
@@ -56,4 +69,4 @@ fi
 
 cd "$ROOT"
 exec env DASHBOARD_TOKEN="$TOKEN" DASHBOARD_OPEN=0 DASHBOARD_PORT="$PORT" LLM_WIKI_PERMISSIONS=read \
-  nono run "$@" -- node node_modules/.bin/tsx server/src/index.ts
+  nono run "$@" -- node --import tsx server/src/index.ts
