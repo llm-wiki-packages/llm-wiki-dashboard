@@ -5,6 +5,7 @@
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
+  LearnedView,
   Provenance,
   AskAnswer,
   AreaSummary,
@@ -707,6 +708,44 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         degradations: ans.degradations ?? [],
       }
     },
+    learned: async (key, days): Promise<LearnedView> => {
+      const r = await root(key)
+      const [w, recent, all] = await Promise.all([summary(r), changed(key, `${days}d` as Since), soft(allPages(key), [])])
+      const dates = dayList(days)
+      const index = new Map(dates.map((d, i) => [d, i]))
+      const byArea = new Map<string, number[]>()
+      for (const p of recent) {
+        const kind = kindOf(p)
+        if (kind !== 'new' && kind !== 'distilled') continue
+        const i = index.get(localDay(whenOf(p)))
+        if (i === undefined) continue
+        const area = p.areas[0] ?? 'Unsorted'
+        const row = byArea.get(area) ?? dates.map(() => 0)
+        row[i] = (row[i] ?? 0) + 1
+        byArea.set(area, row)
+      }
+      // A page counts from the day it was captured or written; one with neither was always there.
+      const born = all.map((p) => (p.harvested?.at ?? p.generated?.at ? localDay((p.harvested?.at ?? p.generated?.at) as string) : ''))
+      const size = dates.map((d) => born.filter((b) => b <= d).length)
+      const channels = await channelsOf(key, recent)
+      const lastOf = new Map<string, string>()
+      for (const p of recent) {
+        const id = channelIdOf(p)
+        const t = whenOf(p)
+        if ((lastOf.get(id) ?? '') < t) lastOf.set(id, t)
+      }
+      const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
+      const quiet = channels
+        .filter((c) => (lastOf.get(c.id) ?? '') < weekAgo)
+        .map((c) => ({ id: c.id, name: c.name, last: lastOf.get(c.id) ?? '' }))
+      return {
+        wiki: w,
+        days: dates,
+        areas: [...byArea].map(([name, perDay]) => ({ name, perDay, total: perDay.reduce((a, b) => a + b, 0) })).sort((a, b) => b.total - a.total),
+        size,
+        quiet,
+      }
+    },
     ask: async (key, req): Promise<AskAnswer> => {
       await root(key)
       const skill = req.prefix.slice(1)
@@ -751,6 +790,17 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       }
     },
   }
+}
+
+/** A local calendar date, YYYY-MM-DD. */
+export function localDay(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** The last `n` local dates, oldest first, ending today. */
+export function dayList(n: number): string[] {
+  return Array.from({ length: n }, (_, i) => localDay(new Date(Date.now() - (n - 1 - i) * 86_400_000).toISOString()))
 }
 
 /** The wiki's machines as the status verb sees them, with what each is running. */

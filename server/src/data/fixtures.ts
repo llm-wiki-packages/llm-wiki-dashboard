@@ -4,6 +4,7 @@
 // serves, so a sales demo never depends on a live pipeline being busy.
 
 import type {
+  LearnedView,
   AskAnswer,
   AreaSummary,
   ItemKind,
@@ -286,6 +287,46 @@ function cannedAnswer(q: string): string {
 - [[Sales playbook › Packaging|Sales playbook: packaging]]`
 }
 
+/** Thirty days of learning, made up but steady: weekdays busier than weekends, each area its own rhythm, today's counts last. */
+function learnedDays(days: 7 | 30): Omit<LearnedView, 'wiki'> {
+  const dates = Array.from({ length: 30 }, (_, i) => localDay(new Date(Date.now() - (29 - i) * DAY_MS)))
+  let seed = 7
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  const base: Record<string, number> = { Customers: 5, 'Product learning': 8, Competitors: 1.5, Industry: 3, 'Sales enablement': 4 }
+  const today = channelsWithCounts()
+  const areasAll = areaOrder.map((name) => {
+    const perDay = dates.map((d, i) => {
+      if (i === dates.length - 1)
+        return today.filter((c) => c.area === name).reduce((n, c) => n + c.counts.new + c.counts.distilled, 0)
+      const weekday = new Date(`${d}T12:00:00`).getDay()
+      const quietDay = weekday === 0 || weekday === 6 ? 0.35 : 1
+      // Product learning ramps up over the month: the course and the channel started mid-way.
+      const ramp = name === 'Product learning' ? 0.3 + (1.2 * i) / dates.length : 1
+      return Math.round((base[name] ?? 2) * quietDay * ramp * (0.5 + rand()))
+    })
+    return { name, perDay }
+  })
+  const pick = <T,>(xs: T[]) => xs.slice(-days)
+  const totals = dates.map((_, i) => areasAll.reduce((n, a) => n + (a.perDay[i] ?? 0), 0))
+  const sizes: number[] = []
+  let size = wikiList[0]?.pages ?? 0
+  for (let i = dates.length - 1; i >= 0; i--) {
+    sizes[i] = size
+    size -= totals[i] ?? 0
+  }
+  return {
+    days: pick(dates),
+    areas: areasAll
+      .map((a) => ({ name: a.name, perDay: pick(a.perDay), total: pick(a.perDay).reduce((x, y) => x + y, 0) }))
+      .sort((a, b) => b.total - a.total),
+    size: pick(sizes),
+    quiet: [
+      { id: 'calendar', name: 'Calendar', last: at(10, 0, -9) },
+      { id: 'hubspot-pages', name: 'HubSpot · pages', last: at(7, 0, -3) },
+    ],
+  }
+}
+
 export function fixturesSource(): Source {
   const a = areas()
   const totalCounts = sum(a.map((x) => x.counts))
@@ -416,6 +457,7 @@ export function fixturesSource(): Source {
         }))
       return { q: params.q, backend: 'fixtures', degraded: false, count: hits.length, hits, emulated: [], degradations: [] }
     },
+    learned: async (key, days): Promise<LearnedView> => ({ wiki: wiki(key), ...learnedDays(days) }),
     ask: async (key, req): Promise<AskAnswer> => {
       wiki(key)
       // A pause, so the demo shows the agent at work the way a real answer does.

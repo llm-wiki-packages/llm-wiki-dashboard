@@ -267,7 +267,18 @@ export interface TraceRow {
   stderr_tail?: string
 }
 
-export type ViewName = 'today' | 'new' | 'fleet' | 'briefings'
+/** What the wiki learned over a window: pages per area per day, its size over time, channels gone quiet. */
+export interface LearnedView {
+  wiki: WikiSummary
+  /** Local dates, oldest first. */
+  days: string[]
+  areas: Array<{ name: string; perDay: number[]; total: number }>
+  /** Pages in the wiki at the end of each day. */
+  size: number[]
+  quiet: Array<{ id: string; name: string; last: string }>
+}
+
+export type ViewName = 'today' | 'new' | 'fleet' | 'briefings' | 'learned'
 
 /** One thing that happened on a replayed day: a page landing, or a run starting or ending. */
 export interface ReplayEvent {

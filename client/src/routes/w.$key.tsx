@@ -47,6 +47,7 @@ function ShellInner() {
             <Tab to="/w/$key/new" params={{ key }} label="What's new" />
             <Tab to="/w/$key/fleet" params={{ key }} label="Fleet" />
             <Tab to="/w/$key/briefings" params={{ key }} label="Briefings" />
+            <Tab to="/w/$key/learned" params={{ key }} label="Learned" />
             <Tab to="/w/$key/search" params={{ key }} label="Search" />
           </nav>
         </div>

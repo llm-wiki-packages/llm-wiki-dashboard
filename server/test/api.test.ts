@@ -174,3 +174,18 @@ describe('provenance', () => {
     expect(page.provenance.into.map((p) => p.path)).toEqual(['wiki/playbook/packaging.md'])
   })
 })
+
+describe('learned', () => {
+  it('answers a day per column, per area, and a size that grows by what was learned', async () => {
+    const v = (await (await app.request('/api/wikis/acme-sales/learned?days=7', { headers })).json()) as {
+      days: string[]
+      areas: Array<{ perDay: number[]; total: number }>
+      size: number[]
+    }
+    expect(v.days).toHaveLength(7)
+    expect(v.size).toHaveLength(7)
+    for (const a of v.areas) expect(a.perDay).toHaveLength(7)
+    const last = v.areas.reduce((n, a) => n + (a.perDay[6] ?? 0), 0)
+    expect((v.size[6] ?? 0) - (v.size[5] ?? 0)).toBe(last)
+  })
+})

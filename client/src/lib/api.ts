@@ -11,6 +11,7 @@ import type {
   BriefingsView,
   Facets,
   FleetView,
+  LearnedView,
   NewView,
   PageView,
   Resolved,
@@ -104,6 +105,8 @@ export const q = {
       refetchInterval: false,
     })
   },
+  learned: (key: string, days: 7 | 30) =>
+    queryOptions({ queryKey: ['wiki', key, 'learned', days], queryFn: () => get<LearnedView>(`/wikis/${key}/learned?days=${days}`), staleTime: 60_000 }),
   /** One agent run per distinct question and settings; the answer is kept for the session, never refetched. */
   ask: (key: string, req: AskRequest) =>
     queryOptions({
@@ -140,3 +143,4 @@ export const useSearch = (key: string, text: string | undefined, opts: Parameter
   useQuery({ ...q.search(key, text ?? '', opts), enabled: Boolean(text) })
 export const useAsk = (key: string, req: AskRequest | undefined) =>
   useQuery({ ...q.ask(key, req ?? { q: '', model: '', effort: '', prefix: '' }), enabled: Boolean(req?.q) })
+export const useLearned = (key: string, days: 7 | 30) => useQuery({ ...q.learned(key, days), placeholderData: keepPreviousData })

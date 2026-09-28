@@ -10,6 +10,7 @@ import type {
   DataSource,
   FleetView,
   Facets,
+  LearnedView,
   NewView,
   PageView,
   ReplayDay,
@@ -37,6 +38,8 @@ export interface Source {
   today(key: string, at?: string): Promise<TodayView>
   whatsNew(key: string, since: Since, at?: string): Promise<NewView>
   fleet(key: string, at?: string): Promise<FleetView>
+  /** The last `days` days (7 or 30): what the wiki learned. */
+  learned(key: string, days: 7 | 30): Promise<LearnedView>
   /** Days with commits to replay, and one day's events in order. */
   replayDays(key: string): Promise<ReplayDays>
   replayDay(key: string, date: string): Promise<ReplayDay>

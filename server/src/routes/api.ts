@@ -110,6 +110,11 @@ export function apiRoutes(source: Source): Hono {
     return c.json(await source.fleet(c.req.param('key'), at))
   })
 
+  api.get('/wikis/:key/learned', async (c) => {
+    const days = c.req.query('days') === '30' ? 30 : 7
+    return c.json(await source.learned(c.req.param('key'), days))
+  })
+
   api.get('/wikis/:key/replay', async (c) => c.json(await source.replayDays(c.req.param('key'))))
 
   api.get('/wikis/:key/replay/:date', async (c) => {
