@@ -55,6 +55,12 @@ describe('report attention', () => {
     expect(items[1]).toMatchObject({ severity: 'attention', page: undefined })
   })
 
+  it('reads the list from the one JSON string page edit stores', () => {
+    const items = reportAttention({ attention: JSON.stringify([{ title: 'From JSON', severity: 'failing' }]) })
+    expect(items).toMatchObject([{ title: 'From JSON', severity: 'failing', fromReport: true }])
+    expect(reportAttention({ attention: '[{broken' })).toEqual([])
+  })
+
   it('puts the report first and drops what it already named', () => {
     const found = [
       { id: 'blocked-gmail', title: "Gmail can't be fetched", detail: '', severity: 'attention' as const, source: 'Gmail · clients' },

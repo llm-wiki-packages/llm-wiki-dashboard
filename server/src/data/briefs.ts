@@ -10,11 +10,24 @@ import type { Attention, BriefingHead } from '@dashboard/shared/types'
 import { FM, parseFrontmatter } from './pages.js'
 
 const MAX_ITEMS = 3
+
+/** The report's `attention` list: YAML as written, or the one JSON string `page edit` stores. */
+function statedAttention(v: unknown): unknown[] {
+  if (Array.isArray(v)) return v
+  if (typeof v !== 'string') return []
+  try {
+    const parsed: unknown = JSON.parse(v)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 
 export function briefingHead(fm: Record<string, unknown> | null, body: string): BriefingHead | undefined {
-  const fmItems = Array.isArray(fm?.attention)
-    ? (fm.attention as unknown[])
+  const listed = statedAttention(fm?.attention)
+  const fmItems = listed.length
+    ? listed
         .map((x) => (x && typeof x === 'object' ? (x as Record<string, unknown>) : {}))
         .map((x) => ({ title: str(x.title) ?? '', detail: str(x.detail) ?? '', source: str(x.source) }))
         .filter((x) => x.title)
@@ -57,8 +70,7 @@ const SEVERITY = new Set(['info', 'attention', 'failing'])
  * no title are dropped; an unknown severity reads as `attention`.
  */
 export function reportAttention(fm: Record<string, unknown> | null): Attention[] {
-  if (!Array.isArray(fm?.attention)) return []
-  return (fm.attention as unknown[]).flatMap((raw, i) => {
+  return statedAttention(fm?.attention).flatMap((raw, i) => {
     const x = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
     const title = str(x.title)
     if (!title) return []
