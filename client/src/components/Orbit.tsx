@@ -32,7 +32,12 @@ function countLabel(c: ChannelSummary): string {
   return parts.join(' · ')
 }
 
-export function Orbit({ wiki, pages, machines, channels }: { wiki: string; pages: number; machines: Machine[]; channels: ChannelSummary[] }) {
+/** A font size that keeps `label` inside the center disc, down to a floor. */
+function fit(label: string, max: number, width: number): number {
+  return Math.max(10, Math.min(max, Math.floor((width / Math.max(1, label.length)) * 1.9)))
+}
+
+export function Orbit({ wiki, pages, machines, channels, emptyNote }: { wiki: string; pages: number; machines: Machine[]; channels: ChannelSummary[]; emptyNote?: string }) {
   const ms = machines.length ? machines : [{ name: 'this machine', thisMachine: true, capabilities: [], lastSeen: null, state: 'idle', running: 0, leases: 0 } as Machine]
   const machinePos = new Map<string, Pt>()
   ms.forEach((m, i) => machinePos.set(m.name, polar(R_MACHINES, -90 + (360 / ms.length) * i)))
@@ -122,10 +127,16 @@ export function Orbit({ wiki, pages, machines, channels }: { wiki: string; pages
         )
       })}
 
+      {channels.length === 0 && emptyNote && (
+        <text x={CX} y={CY + R_CHANNELS + 24} textAnchor="middle" fontSize={13} fill="var(--color-ink-2)">
+          {emptyNote}
+        </text>
+      )}
+
       <g textAnchor="middle">
         <circle cx={CX} cy={CY} r={46} fill="var(--color-ink)" />
-        <text x={CX} y={CY - 3} fontSize={17} fill="var(--color-paper)" style={{ fontFamily: 'var(--font-display)' }}>
-          {wiki.length > 12 ? `${wiki.slice(0, 11)}…` : wiki}
+        <text x={CX} y={CY - 3} fontSize={fit(wiki, 17, 84)} fill="var(--color-paper)" style={{ fontFamily: 'var(--font-display)' }}>
+          {wiki}
         </text>
         <text x={CX} y={CY + 15} fontSize={11} fill="var(--color-paper)" opacity={0.7}>
           {pages ? `+${pages} today` : 'quiet today'}

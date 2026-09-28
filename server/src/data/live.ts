@@ -281,7 +281,9 @@ export function liveSource(cli: Runner): Source {
     }
   }
 
-  async function channelsOf(wiki: string, pages: PageMeta[]): Promise<ChannelSummary[]> {
+  /** Channels: every job, plus one per source the pages name. `discover` widens where the
+   *  pages came from (a month of history) without widening what is counted (today). */
+  async function channelsOf(wiki: string, pages: PageMeta[], discover: PageMeta[] = pages): Promise<ChannelSummary[]> {
     const [js, d] = await Promise.all([jobs(wiki), due(wiki)])
     const byId = new Map<string, ChannelSummary>()
     for (const j of js.jobs) {
@@ -298,7 +300,8 @@ export function liveSource(cli: Runner): Source {
         counts: emptyCounts(),
       })
     }
-    for (const p of pages) {
+    const seen = new Set(pages)
+    for (const p of [...pages, ...discover.filter((x) => !seen.has(x))]) {
       const id = channelIdOf(p)
       let ch = byId.get(id)
       if (!ch) {
@@ -316,7 +319,7 @@ export function liveSource(cli: Runner): Source {
       }
       if (!ch.area && p.areas[0]) ch.area = p.areas[0]
       if (!ch.machine && p.harvested?.machine) ch.machine = p.harvested.machine
-      add(ch.counts, kindOf(p))
+      if (seen.has(p)) add(ch.counts, kindOf(p))
     }
     return [...byId.values()].sort((a, b) => total(b.counts) - total(a.counts))
   }
@@ -513,7 +516,9 @@ export function liveSource(cli: Runner): Source {
       const r = await root(key)
       const since = hoursSinceMidnight()
       const [w, st, d, sc, rn, pages, se] = await Promise.all([summary(r), soft(status(key), { machine: '' } as Status), due(key), schedule(key), runs(key, since), changed(key, since), search(key)])
-      const channels = await channelsOf(key, pages)
+      // A wiki with no jobs and a quiet day still has a history worth drawing.
+      const discover = (await jobs(key)).jobs.length || pages.length ? pages : await changed(key, '30d')
+      const channels = await channelsOf(key, pages, discover)
       const runningBy = new Map<string, number>()
       for (const x of d.running ?? []) if (x.machine) runningBy.set(x.machine, (runningBy.get(x.machine) ?? 0) + 1)
       const machines: Machine[] = (st.peers ?? []).map((p) => {

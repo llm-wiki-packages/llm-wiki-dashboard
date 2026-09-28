@@ -37,7 +37,13 @@ function Fleet() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Card className="overflow-hidden p-2">
-          <Orbit wiki={v.wiki.name} pages={pagesToday} machines={v.machines} channels={v.channels} />
+          <Orbit
+            wiki={v.wiki.key}
+            pages={pagesToday}
+            machines={v.machines}
+            channels={v.channels}
+            emptyNote={`No ${channelNoun[1]} watched yet, and nothing captured in the last 30 days. Add a watch and it appears here.`}
+          />
         </Card>
 
         <div className="flex flex-col gap-4">
