@@ -11,6 +11,16 @@
       rel="stylesheet"
     />
     <title>Dashboard</title>
+    <script>
+      // Apply the stored theme and mode before the first paint; lib/theme.ts owns the keys.
+      try {
+        var t = localStorage.getItem('dashboard.theme') || 'paper'
+        var m = localStorage.getItem('dashboard.mode') || 'system'
+        if (m === 'system') m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.dataset.theme = t
+        document.documentElement.dataset.mode = m
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

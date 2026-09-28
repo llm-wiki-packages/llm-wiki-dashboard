@@ -9,6 +9,8 @@ import type {
   BriefingsView,
   FleetView,
   NewView,
+  PageView,
+  Resolved,
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
@@ -54,6 +56,18 @@ export const q = {
       queryKey: ['wiki', key, 'briefings'],
       queryFn: () => get<BriefingsView>(`/wikis/${key}/briefings`),
     }),
+  page: (key: string, rel: string) =>
+    queryOptions({
+      queryKey: ['wiki', key, 'page', rel],
+      queryFn: () => get<PageView>(`/wikis/${key}/page?path=${encodeURIComponent(rel)}`),
+    }),
+  resolve: (key: string, link: string) =>
+    queryOptions({
+      queryKey: ['wiki', key, 'resolve', link],
+      queryFn: () => get<Resolved>(`/wikis/${key}/resolve?link=${encodeURIComponent(link)}`),
+      staleTime: 60_000,
+      retry: false,
+    }),
   briefing: (key: string, id: string) =>
     queryOptions({
       queryKey: ['wiki', key, 'briefings', id],
@@ -69,3 +83,7 @@ export const useFleet = (key: string) => useQuery(q.fleet(key))
 export const useBriefings = (key: string) => useQuery(q.briefings(key))
 export const useBriefing = (key: string, id: string | undefined) =>
   useQuery({ ...q.briefing(key, id ?? ''), enabled: Boolean(id) })
+export const usePage = (key: string, rel: string | undefined) =>
+  useQuery({ ...q.page(key, rel ?? ''), enabled: Boolean(rel) })
+export const useResolve = (key: string, link: string | undefined) =>
+  useQuery({ ...q.resolve(key, link ?? ''), enabled: Boolean(link) })

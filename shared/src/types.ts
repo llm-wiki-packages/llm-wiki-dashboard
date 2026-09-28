@@ -151,6 +151,22 @@ export interface Briefing {
   body?: string
 }
 
+/** One wiki page, for the in-app reader a wikilink opens. */
+export interface PageView {
+  path: string
+  title: string
+  kind: string
+  when: string
+  areas: string[]
+  resource?: string
+  body: string
+}
+
+export interface Resolved {
+  link: string
+  path: string
+}
+
 export interface TodayView {
   wiki: WikiSummary
   since: string

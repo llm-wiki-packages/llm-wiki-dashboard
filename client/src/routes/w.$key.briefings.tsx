@@ -2,10 +2,10 @@
 // rendered as an article.
 
 import { createFileRoute } from '@tanstack/react-router'
-import Markdown from 'react-markdown'
 import { useBriefing, useBriefings, useConfig } from '@/lib/api'
 import { dayLabel } from '@/lib/format'
 import { Card, ErrorNote, Empty, SectionLabel, Skeleton, cn } from '@/components/ui'
+import { Brief } from '@/components/Brief'
 
 type Search = { id?: string }
 
@@ -69,9 +69,7 @@ function Briefings() {
                 {report.data.path}
               </span>
             </div>
-            <div className="prose-brief">
-              <Markdown>{report.data.body ?? report.data.summary}</Markdown>
-            </div>
+            <Brief wikiKey={key} markdown={report.data.body ?? report.data.summary} />
           </article>
         )}
       </Card>

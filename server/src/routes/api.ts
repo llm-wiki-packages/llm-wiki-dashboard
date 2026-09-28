@@ -11,6 +11,7 @@ import { NotFound, type Source } from '../data/source.js'
 
 const SINCE = /^\d{1,3}[hd]$/
 const ID = /^[A-Za-z0-9_-]{1,512}$/
+const REL = /^(?!\.)(?!.*\.\.)(?!\/)[A-Za-z0-9._\-/ ()&$'!,+—–]{1,400}\.md$/
 
 export function apiRoutes(source: Source): Hono {
   const api = new Hono()
@@ -85,6 +86,22 @@ export function apiRoutes(source: Source): Hono {
     const b = await source.briefing(c.req.param('key'), id)
     if (!b) return c.json({ error: 'briefing not found' }, 404)
     return c.json(b)
+  })
+
+  api.get('/wikis/:key/page', async (c) => {
+    const rel = c.req.query('path') ?? ''
+    if (!REL.test(rel)) return c.json({ error: 'path must be a wiki-relative .md path' }, 400)
+    const page = await source.page(c.req.param('key'), rel)
+    if (!page) return c.json({ error: 'page not found' }, 404)
+    return c.json(page)
+  })
+
+  api.get('/wikis/:key/resolve', async (c) => {
+    const link = (c.req.query('link') ?? '').trim()
+    if (!link || link.length > 300) return c.json({ error: 'link required' }, 400)
+    const found = await source.resolve(c.req.param('key'), link)
+    if (!found) return c.json({ error: `no page for [[${link}]]` }, 404)
+    return c.json(found)
   })
 
   return api

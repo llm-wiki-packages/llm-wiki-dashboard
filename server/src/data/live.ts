@@ -17,7 +17,9 @@ import type {
   NewItem,
   NewView,
   NowItem,
+  PageView,
   PlanItem,
+  Resolved,
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
@@ -25,7 +27,7 @@ import { brand } from '@dashboard/shared/brand'
 import { config } from '../config/index.js'
 import { CliError, type Runner, type Since } from './cli.js'
 import { isPage, readBody, readPages, type PageMeta } from './pages.js'
-import { NotFound, emptyCounts, type Source, type WikiRoot } from './source.js'
+import { NotFound, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
 
 // ---- CLI answer shapes (only the keys read here) ----------------------------
 
@@ -421,6 +423,34 @@ export function liveSource(cli: Runner): Source {
       .sort((a, b) => b.when.localeCompare(a.when))
   }
 
+  /** Every page's file stem → path, the way an editor resolves `[[links]]`; rebuilt at most once a minute. */
+  const stems = (wiki: string) =>
+    memo(`stems:${wiki}`, async () => {
+      const r = await root(wiki)
+      const index = new Map<string, string>()
+      async function walk(rel: string, depth: number): Promise<void> {
+        if (depth > 8) return
+        let entries: import('node:fs').Dirent[]
+        try {
+          entries = await readdir(join(r.path, rel), { withFileTypes: true })
+        } catch {
+          return
+        }
+        for (const e of entries) {
+          const p = rel ? `${rel}/${e.name}` : e.name
+          if (e.isDirectory()) {
+            if (!/^[._]/.test(e.name) && !['node_modules', 'assets'].includes(e.name)) await walk(p, depth + 1)
+          } else if (isPage(p)) {
+            const key = stemKey(e.name.replace(/\.md$/, ''))
+            // The first hit wins, and `wiki/` is walked first: a distilled page outranks its source.
+            if (!index.has(key)) index.set(key, p)
+          }
+        }
+      }
+      for (const top of ['wiki', 'research', 'sources']) await walk(top, 0)
+      return index
+    })
+
   return {
     kind: 'live',
     opsVersion: () =>
@@ -543,6 +573,28 @@ export function liveSource(cli: Runner): Source {
         summary: page.meta.description ?? '',
         body: page.body,
       }
+    },
+    page: async (key, rel): Promise<PageView | null> => {
+      const r = await root(key)
+      if (!isPage(rel)) return null
+      const page = await readBody(r.path, rel)
+      if (!page) return null
+      return {
+        path: rel,
+        title: page.meta.title,
+        kind: page.meta.type ?? 'page',
+        when: whenOf(page.meta),
+        areas: page.meta.areas,
+        resource: page.meta.resource,
+        body: page.body,
+      }
+    },
+    resolve: async (key, link): Promise<Resolved | null> => {
+      const index = await stems(key)
+      const stem = linkStem(link)
+      if (!stem) return null
+      const path = index.get(stemKey(stem))
+      return path ? { link, path } : null
     },
   }
 }

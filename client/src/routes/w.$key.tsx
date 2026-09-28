@@ -3,10 +3,11 @@
 // into the outlet.
 
 import { Link, Outlet, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Monitor, Moon, Sun } from 'lucide-react'
 import { useConfig, useWikis } from '@/lib/api'
 import { useLiveEvents } from '@/lib/events'
 import { longDate } from '@/lib/format'
+import { THEMES, useTheme, type Mode } from '@/lib/theme'
 import { Dot, HealthDot, Pill, cn } from '@/components/ui'
 
 export const Route = createFileRoute('/w/$key')({ component: Shell })
@@ -17,6 +18,7 @@ function Shell() {
   const wikis = useWikis()
   const live = useLiveEvents()
   const navigate = useNavigate()
+  const look = useTheme()
   const wiki = wikis.data?.find((w) => w.key === key)
   const name = cfg.data?.productName ?? ''
 
@@ -54,6 +56,43 @@ function Shell() {
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 size-3.5 text-ink-2" />
           </label>
+          <label className="relative flex h-9 items-center rounded-pill border border-line-2 bg-card pl-3 pr-7 text-sm">
+            <select
+              aria-label="Theme"
+              className="appearance-none bg-transparent outline-none"
+              value={look.theme}
+              onChange={(e) => look.setTheme(e.target.value as (typeof THEMES)[number]['id'])}
+            >
+              {THEMES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 size-3.5 text-ink-2" />
+          </label>
+          <div role="radiogroup" aria-label="Light or dark" className="flex h-9 overflow-hidden rounded-pill border border-line-2 bg-card">
+            {(
+              [
+                ['system', Monitor, 'Follow the system'],
+                ['light', Sun, 'Light'],
+                ['dark', Moon, 'Dark'],
+              ] as const
+            ).map(([m, Icon, label]) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={look.mode === m}
+                aria-label={label}
+                title={label}
+                onClick={() => look.setMode(m as Mode)}
+                className={cn('flex w-9 items-center justify-center transition-colors', look.mode === m ? 'bg-ink text-paper' : 'text-ink-2 hover:text-ink')}
+              >
+                <Icon className="size-4" />
+              </button>
+            ))}
+          </div>
           <span title={live.connected ? 'live updates connected' : 'live updates reconnecting'} className="flex items-center">
             <Dot color={live.connected ? 'var(--color-live)' : 'var(--color-ink-3)'} live={live.connected} className="size-2" />
           </span>

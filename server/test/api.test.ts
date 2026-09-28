@@ -61,3 +61,19 @@ describe('views', () => {
     expect(cfg.source).toBe('fixtures')
   })
 })
+
+describe('reader', () => {
+  it('resolves a wikilink by the page part and serves the page', async () => {
+    const res = await app.request('/api/wikis/acme-sales/resolve?link=' + encodeURIComponent('Security › Questionnaires'), { headers })
+    expect(res.status).toBe(200)
+    const { path } = (await res.json()) as { path: string }
+    const page = await app.request(`/api/wikis/acme-sales/page?path=${encodeURIComponent(path)}`, { headers })
+    expect(page.status).toBe(200)
+    expect(((await page.json()) as { title: string }).title).toBe('Security questionnaires')
+  })
+  it('404s an unknown link and refuses a path that escapes the wiki', async () => {
+    expect((await app.request('/api/wikis/acme-sales/resolve?link=Nope', { headers })).status).toBe(404)
+    expect((await app.request('/api/wikis/acme-sales/page?path=../etc/passwd.md', { headers })).status).toBe(400)
+    expect((await app.request('/api/wikis/acme-sales/page?path=/etc/x.md', { headers })).status).toBe(400)
+  })
+})

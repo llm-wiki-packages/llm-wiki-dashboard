@@ -14,11 +14,13 @@ import type {
   NewItem,
   NewView,
   NowItem,
+  PageView,
   PlanItem,
+  Resolved,
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
-import { NotFound, emptyCounts, type Source, type WikiRoot } from './source.js'
+import { NotFound, emptyCounts, linkStem, type Source, type WikiRoot } from './source.js'
 
 const at = (h: number, m = 0, dayOffset = 0): string => {
   const d = new Date()
@@ -134,6 +136,13 @@ The pricing course revised its anchoring lesson, and the SaaS Growth episode on 
 *Written by the morning bundle from 47 pages captured since yesterday's report · 12 sources cited.*
 `
 
+const pagesByStem: Record<string, PageView> = {
+  'security › questionnaires': { path: 'wiki/security/questionnaires.md', title: 'Security questionnaires', kind: 'topic', when: at(7, 0, -40), areas: ['Customers'], body: `# Security questionnaires\n\nLast year's answers to the Northwind and Contoso questionnaires, 22 questions. 14 still describe the product; the 8 marked *revisit* changed with the SSO rollout.\n\n## Still current\n\n- Data residency: EU (Frankfurt) and US (Oregon), chosen per workspace.\n- Encryption at rest and in transit; keys rotated quarterly.\n\n## Revisit\n\n- SSO: now SAML and OIDC, not SAML only.\n- Audit log retention: 400 days, was 90.\n\nSee [[Sales playbook › Packaging]] for how the security tier is priced.` },
+  'sales playbook › packaging': { path: 'wiki/playbook/packaging.md', title: 'Sales playbook: packaging', kind: 'playbook', when: at(16, 30), areas: ['Sales enablement'], body: `# Packaging\n\nHow the tiers are cut and where the expansion path runs.\n\n## Anchor on the outcome\n\nOpen on the value of the outcome, then the annual price; monthly is never shown before annual. *(Distilled from [[Lesson 4 — anchoring]] and SaaS Growth ep. 213.)*\n\n## Usage caps beat seat limits\n\nA cap on usage grows with the customer; a cap on seats fights their org chart.` },
+  'lesson 4 — anchoring': { path: 'sources/scrapes/somecourse/lesson-4-anchoring.md', title: 'Lesson 4 — anchoring', kind: 'lesson', when: at(16, 28), areas: ['Product learning'], resource: 'https://somecourse.com/pricing/lesson-4', body: `# Lesson 4 — anchoring\n\nAnchor on the value of the outcome first; the annual price is the second anchor, and monthly is never shown before it.` },
+}
+const stemOf = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+
 const wikiList: WikiSummary[] = [
   { key: 'acme-sales', name: 'Acme · Sales', path: '/Users/demo/wikis/acme-sales', pages: 3880, channels: 8, bundlesEnabled: 9, bundlesTotal: 10, health: 'attention', healthNote: '1 channel needs a credential', machines: 3, running: 2, lastRun: { op: 'hourly', outcome: 'ok', when: at(21, 2), actor: `agent@${THIS_MACHINE}`, summary: 'curate: 6 accepted, 0 rejected' }, nextDue: { bundle: 'nightly', at: at(22, 0) } },
   { key: 'life', name: 'Life', path: '/Users/demo/wikis/life', pages: 1204, channels: 5, bundlesEnabled: 9, bundlesTotal: 10, health: 'ok', machines: 1, running: 0, lastRun: { op: 'hourly', outcome: 'ok', when: at(20, 50), actor: 'agent@studio-mini', summary: 'curate: nothing staged' }, nextDue: { bundle: 'nightly', at: at(22, 0) } },
@@ -192,6 +201,16 @@ export function fixturesSource(): Source {
       wiki(key)
       const r = reports.find((x) => x.id === id)
       return r ? { ...r, body: r.id === 'morning-today' ? morningBody : `# ${r.title}\n\n${r.summary}\n` } : null
+    },
+    page: async (key, rel) => {
+      wiki(key)
+      return Object.values(pagesByStem).find((p) => p.path === rel) ?? null
+    },
+    resolve: async (key, link): Promise<Resolved | null> => {
+      wiki(key)
+      const full = stemOf(link.split('|')[0] ?? '')
+      const page = pagesByStem[full] ?? Object.entries(pagesByStem).find(([k]) => k.split('›')[0]?.trim() === linkStem(link))?.[1]
+      return page ? { link, path: page.path } : null
     },
   }
 }
