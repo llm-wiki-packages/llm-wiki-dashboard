@@ -217,7 +217,7 @@ function PlanRow({ item }: { item: PlanItem }) {
           ? 'bg-live live-pulse'
           : 'border-[1.5px] border-ink bg-transparent'
   return (
-    <div className="grid grid-cols-[52px_14px_1fr] items-center gap-2.5 py-[7px]">
+    <div className="grid grid-cols-[44px_14px_1fr] items-center gap-2.5 py-[7px]">
       <span className={`text-[13px] tabular-nums ${done ? 'text-ink-3' : 'text-ink'}`}>{item.status === 'running' ? 'now' : item.time ? clock(item.time) : 'due'}</span>
       <span className={`inline-block size-2.5 rounded-full ${mark}`} />
       <span className={`truncate text-sm ${done ? 'text-ink-2' : 'text-ink'}`}>{item.text}</span>

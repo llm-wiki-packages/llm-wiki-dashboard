@@ -2,7 +2,7 @@
    and every screen follows; the components only ever name these tokens. */
 @import 'tailwindcss';
 
-@theme {
+@theme static {
   --font-sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
 

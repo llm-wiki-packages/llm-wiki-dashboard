@@ -70,7 +70,7 @@ function Fleet() {
             <Timeline plan={v.plan} />
             <div className="flex flex-col overflow-hidden">
               {v.plan.slice(0, 10).map((p, i) => (
-                <div key={`${p.bundle}-${p.time}-${i}`} className="grid grid-cols-[48px_12px_1fr_auto] items-center gap-2.5 border-t border-line/60 py-[7px]">
+                <div key={`${p.bundle}-${p.time}-${i}`} className="grid grid-cols-[44px_12px_1fr_auto] items-center gap-2.5 border-t border-line/60 py-[7px]">
                   <span className={`text-[13px] tabular-nums ${p.status === 'upcoming' ? 'text-ink' : p.status === 'running' ? 'text-live' : 'text-ink-3'}`}>
                     {p.status === 'running' ? 'now' : p.time ? clock(p.time) : 'due'}
                   </span>

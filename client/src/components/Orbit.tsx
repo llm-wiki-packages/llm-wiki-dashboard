@@ -77,7 +77,8 @@ export function Orbit({ wiki, pages, machines, channels }: { wiki: string; pages
         const live = c.state === 'running'
         const blocked = c.state === 'blocked' || c.state === 'failed'
         const hue = CH(c.id)
-        const mid = { x: (p.x + m.x) / 2, y: (p.y + m.y) / 2 }
+        // Counts sit nearer the channel than the machine, clear of the machine's ring.
+        const mid = { x: m.x + (p.x - m.x) * 0.62, y: m.y + (p.y - m.y) * 0.62 }
         const labelAnchor = p.x < CX - 20 ? 'end' : p.x > CX + 20 ? 'start' : 'middle'
         return (
           <g key={c.id}>
@@ -111,8 +112,8 @@ export function Orbit({ wiki, pages, machines, channels }: { wiki: string; pages
           <g key={m.name} textAnchor="middle">
             <circle cx={p.x} cy={p.y} r={40} fill="var(--color-card)" stroke={live ? 'var(--color-live)' : stale ? 'var(--color-warn)' : 'var(--color-line-2)'} strokeWidth={2} strokeDasharray={stale ? '4 4' : undefined} />
             {live && <circle cx={p.x} cy={p.y} r={48} fill="none" stroke="var(--color-live)" strokeWidth={1} className="live-pulse" />}
-            <text x={p.x} y={p.y - 3} fontSize={13} fontWeight={600} fill="var(--color-ink)">
-              {m.name.length > 12 ? `${m.name.slice(0, 11)}…` : m.name}
+            <text x={p.x} y={p.y - 3} fontSize={12} fontWeight={600} fill="var(--color-ink)">
+              {m.name.length > 15 ? `${m.name.slice(0, 14)}…` : m.name}
             </text>
             <text x={p.x} y={p.y + 13} fontSize={11} fill={live ? 'var(--color-live)' : stale ? 'var(--color-warn-ink)' : 'var(--color-ink-2)'}>
               {live ? `${m.running} running` : stale ? 'stale' : m.thisMachine ? 'this machine' : 'idle'}

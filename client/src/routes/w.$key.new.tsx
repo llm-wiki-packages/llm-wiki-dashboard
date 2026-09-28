@@ -111,7 +111,7 @@ function WhatsNew() {
             )}
 
             <Card className="flex grow flex-col overflow-hidden p-0">
-              <div className="grid grid-cols-[76px_1fr_180px_90px] gap-3 border-b border-line px-[18px] py-2.5 text-xs uppercase tracking-[0.06em] text-ink-2">
+              <div className="grid grid-cols-[76px_1fr_180px_120px] gap-3 border-b border-line px-[18px] py-2.5 text-xs uppercase tracking-[0.06em] text-ink-2">
                 <span />
                 <span>Page</span>
                 <span>From</span>
@@ -228,7 +228,7 @@ function PageRow({ item, channels }: { item: NewItem; channels: ChannelSummary[]
       target={item.resource ? '_blank' : undefined}
       rel="noreferrer"
       title={item.path}
-      className="grid grid-cols-[76px_1fr_180px_90px] items-center gap-3 border-b border-line/60 px-[18px] py-[11px] hover:bg-paper/60"
+      className="grid grid-cols-[76px_1fr_180px_120px] items-center gap-3 border-b border-line/60 px-[18px] py-[11px] hover:bg-paper/60"
     >
       <KindBadge kind={item.kind} />
       <span className="flex min-w-0 flex-col gap-0.5">

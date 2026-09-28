@@ -160,7 +160,7 @@ export function fixturesSource(): Source {
         wiki: w,
         since: midnight(),
         totals: { pages: total(totalCounts), areas: a.filter((x) => x.count > 0).length, counts: totalCounts },
-        lede: `Since this morning your ${w.name.toLowerCase()} wiki gained ${total(totalCounts)} pages across ${a.filter((x) => x.count > 0).length} areas. Three things are worth a look, and one channel needs a credential.`,
+        lede: `Since this morning your wiki gained ${total(totalCounts)} pages across ${a.filter((x) => x.count > 0).length} areas. Three things are worth a look, and one channel needs a credential.`,
         areas: a,
         now: now.slice(0, 3),
         plan,
