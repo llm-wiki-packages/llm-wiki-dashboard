@@ -3,11 +3,27 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { FileText, AlertCircle, ArrowRight, Newspaper } from 'lucide-react'
-import type { AreaSummary, Briefing, Counts, NowItem, PlanItem } from '@dashboard/shared/types'
+import type {
+  AreaSummary,
+  Attention,
+  Briefing,
+  Counts,
+  NowItem,
+  PlanItem,
+} from '@dashboard/shared/types'
 import { useConfig, useToday } from '@/lib/api'
 import { clock, greeting, n, nowDate, plural, timeAgo } from '@/lib/format'
 import { useSwitch } from '@/lib/prefs'
-import { Card, ChannelDot, Dot, ErrorNote, Empty, Pill, SectionLabel, Skeleton } from '@/components/ui'
+import {
+  Card,
+  ChannelDot,
+  Dot,
+  ErrorNote,
+  Empty,
+  Pill,
+  SectionLabel,
+  Skeleton,
+} from '@/components/ui'
 
 export const Route = createFileRoute('/w/$key/')({ component: Today })
 
@@ -17,7 +33,10 @@ function Today() {
   const cfg = useConfig()
   const wikiNoun = cfg.data?.nouns.wiki ?? (['wiki', 'wikis'] as const)
   // The briefing leads by default in demo mode; live data leads with the areas until the viewer asks otherwise.
-  const [briefFirst, setBriefFirst] = useSwitch('dashboard.briefFirst', cfg.data?.source === 'fixtures')
+  const [briefFirst, setBriefFirst] = useSwitch(
+    'dashboard.briefFirst',
+    cfg.data?.source === 'fixtures',
+  )
 
   if (view.isPending)
     return (
@@ -26,7 +45,12 @@ function Today() {
         <Skeleton className="h-[520px]" />
       </div>
     )
-  if (view.isError) return <div className="pt-6"><ErrorNote error={view.error} /></div>
+  if (view.isError)
+    return (
+      <div className="pt-6">
+        <ErrorNote error={view.error} />
+      </div>
+    )
   const v = view.data
   const running = v.now.filter((x) => x.state === 'running').length
   const needs = v.attention.filter((a) => a.severity !== 'info').length
@@ -46,7 +70,11 @@ function Today() {
               {running} {running === 1 ? 'agent' : 'agents'} working now
             </Pill>
           )}
-          {needs > 0 && <Pill tone="warn">{needs} {needs === 1 ? 'needs' : 'need'} you</Pill>}
+          {needs > 0 && (
+            <Pill tone="warn">
+              {needs} {needs === 1 ? 'needs' : 'need'} you
+            </Pill>
+          )}
           {v.briefing?.head && (
             <button
               type="button"
@@ -76,7 +104,10 @@ function Today() {
             What's new, by area
           </SectionLabel>
           {v.areas.length === 0 ? (
-            <Empty title={`Nothing new in this ${wikiNoun[0]} since midnight`} body="The plan on the right says what runs next." />
+            <Empty
+              title={`Nothing new in this ${wikiNoun[0]} since midnight`}
+              body="The plan on the right says what runs next."
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {v.areas.map((a) => (
@@ -99,7 +130,9 @@ function Today() {
                 <div className="text-[13px] uppercase tracking-[0.08em] text-paper/65">
                   {v.briefing.title} · {clock(v.briefing.when)}
                 </div>
-                <div className="display text-[22px] leading-[1.25]">{v.briefing.summary || 'Read today’s report.'}</div>
+                <div className="display text-[22px] leading-[1.25]">
+                  {v.briefing.summary || 'Read today’s report.'}
+                </div>
               </div>
               <span className="whitespace-nowrap text-sm text-paper/80">Read the report →</span>
             </Link>
@@ -118,16 +151,27 @@ function Today() {
               Right now
             </SectionLabel>
             {v.now.length === 0 ? (
-              <div className="text-sm text-ink-2">Nothing is running. {v.wiki.nextDue ? `Next: ${v.wiki.nextDue.bundle} ${timeAgo(v.wiki.nextDue.at)}.` : ''}</div>
+              <div className="text-sm text-ink-2">
+                Nothing is running.{' '}
+                {v.wiki.nextDue
+                  ? `Next: ${v.wiki.nextDue.bundle} ${timeAgo(v.wiki.nextDue.at)}.`
+                  : ''}
+              </div>
             ) : (
               v.now.slice(0, 4).map((x) => <NowRow key={x.id} item={x} />)
             )}
           </Card>
 
           <Card className="flex grow flex-col gap-3">
-            <SectionLabel right={<span className="text-xs text-ink-2">{clock(nowDate().toISOString())}</span>}>Today's plan</SectionLabel>
+            <SectionLabel
+              right={<span className="text-xs text-ink-2">{clock(nowDate().toISOString())}</span>}
+            >
+              Today's plan
+            </SectionLabel>
             {v.plan.length === 0 ? (
-              <div className="text-sm text-ink-2">No runs recorded today and nothing scheduled.</div>
+              <div className="text-sm text-ink-2">
+                No runs recorded today and nothing scheduled.
+              </div>
             ) : (
               <div className="flex flex-col">
                 {v.plan.slice(0, 8).map((p, i) => (
@@ -138,24 +182,59 @@ function Today() {
           </Card>
 
           {v.attention
-            .filter((a) => a.severity !== 'info')
-            .slice(0, 2)
+            .filter((a) => a.fromReport || a.severity !== 'info')
+            .slice(0, 3)
             .map((a) => (
-              <div key={a.id} className="flex items-center gap-3 rounded-card bg-warn-bg px-5 py-3.5">
-                <AlertCircle className="size-[18px] shrink-0 text-warn-ink" />
-                <div className="flex grow flex-col gap-0.5">
-                  <span className="text-sm">{a.title}</span>
-                  <span className="text-xs text-warn-ink">{a.detail}</span>
-                </div>
-                {a.action && (
-                  <Link to="/w/$key/fleet" params={{ key }} className="text-[13px] font-semibold text-warn-ink">
-                    {a.action.label}
-                  </Link>
-                )}
-              </div>
+              <AttentionCard key={a.id} item={a} wikiKey={key} />
             ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function AttentionCard({ item, wikiKey }: { item: Attention; wikiKey: string }) {
+  const tone = item.severity === 'info' ? 'bg-card border border-line' : 'bg-warn-bg'
+  return (
+    <div className={`flex items-start gap-3 rounded-card px-5 py-3.5 ${tone}`}>
+      <AlertCircle
+        className={`mt-0.5 size-[18px] shrink-0 ${item.severity === 'info' ? 'text-ink-2' : 'text-warn-ink'}`}
+      />
+      <div className="flex grow flex-col gap-1">
+        <span className="text-sm font-medium leading-snug">{item.title}</span>
+        {item.detail && <span className="text-xs leading-[1.45] text-ink-2">{item.detail}</span>}
+        {item.next && (
+          <span className="text-xs leading-[1.45]">
+            <span className="font-semibold">Next:</span> {item.next}
+          </span>
+        )}
+        {(item.fromReport || item.source) && (
+          <span className="text-[11px] text-ink-3">
+            {item.fromReport ? 'From the briefing' : 'Found on this machine'}
+            {item.source ? ` · ${item.source}` : ''}
+          </span>
+        )}
+      </div>
+      {item.page ? (
+        <Link
+          to="/w/$key/page"
+          params={{ key: wikiKey }}
+          search={{ path: item.page }}
+          className="whitespace-nowrap text-[13px] font-semibold text-accent"
+        >
+          Open
+        </Link>
+      ) : (
+        item.action && (
+          <Link
+            to="/w/$key/fleet"
+            params={{ key: wikiKey }}
+            className="whitespace-nowrap text-[13px] font-semibold text-warn-ink"
+          >
+            {item.action.label}
+          </Link>
+        )
+      )}
     </div>
   )
 }
@@ -178,7 +257,11 @@ function BriefingHero({ briefing, wikiKey }: { briefing: Briefing; wikiKey: stri
           Read the report <ArrowRight className="size-4" />
         </Link>
       </div>
-      {head.lede && <h2 className="display max-w-[980px] text-[34px] leading-[1.15] lg:text-[40px]">{head.lede}</h2>}
+      {head.lede && (
+        <h2 className="display max-w-[980px] text-[34px] leading-[1.15] lg:text-[40px]">
+          {head.lede}
+        </h2>
+      )}
       {head.items.length > 0 && (
         <ol className="grid gap-4 md:grid-cols-3">
           {head.items.map((it, i) => (
@@ -187,8 +270,14 @@ function BriefingHero({ briefing, wikiKey }: { briefing: Briefing; wikiKey: stri
                 <span className="display text-[22px] leading-none text-paper/50">{i + 1}</span>
                 <span className="text-[15px] font-semibold leading-snug">{it.title}</span>
               </div>
-              {it.detail && <p className="line-clamp-4 text-sm leading-[1.5] text-paper/75">{it.detail}</p>}
-              {it.source && <span className="mt-auto self-start rounded-pill bg-paper/15 px-2.5 py-1 text-xs text-paper/80">{it.source}</span>}
+              {it.detail && (
+                <p className="line-clamp-4 text-sm leading-[1.5] text-paper/75">{it.detail}</p>
+              )}
+              {it.source && (
+                <span className="mt-auto self-start rounded-pill bg-paper/15 px-2.5 py-1 text-xs text-paper/80">
+                  {it.source}
+                </span>
+              )}
             </li>
           ))}
         </ol>
@@ -245,7 +334,12 @@ function fallbackHeadline(a: AreaSummary): string {
 const sum = (c: { counts: Counts }) => Object.values(c.counts).reduce((x, y) => x + y, 0)
 
 function NowRow({ item }: { item: NowItem }) {
-  const color = item.state === 'running' ? 'var(--color-live)' : item.state === 'blocked' || item.state === 'parked' ? 'var(--color-warn)' : 'var(--color-ink-3)'
+  const color =
+    item.state === 'running'
+      ? 'var(--color-live)'
+      : item.state === 'blocked' || item.state === 'parked'
+        ? 'var(--color-warn)'
+        : 'var(--color-ink-3)'
   return (
     <div className="flex items-center gap-3">
       <Dot color={color} live={item.state === 'running'} />
@@ -273,7 +367,9 @@ function PlanRow({ item }: { item: PlanItem }) {
           : 'border-[1.5px] border-ink bg-transparent'
   return (
     <div className="grid grid-cols-[44px_14px_1fr] items-center gap-2.5 py-[7px]">
-      <span className={`text-[13px] tabular-nums ${done ? 'text-ink-3' : 'text-ink'}`}>{item.status === 'running' ? 'now' : item.time ? clock(item.time) : 'due'}</span>
+      <span className={`text-[13px] tabular-nums ${done ? 'text-ink-3' : 'text-ink'}`}>
+        {item.status === 'running' ? 'now' : item.time ? clock(item.time) : 'due'}
+      </span>
       <span className={`inline-block size-2.5 rounded-full ${mark}`} />
       <span className={`truncate text-sm ${done ? 'text-ink-2' : 'text-ink'}`}>{item.text}</span>
     </div>

@@ -36,7 +36,7 @@ import { CliError, type Runner, type Since } from './cli.js'
 import { isPage, readBody, readPages, type PageMeta } from './pages.js'
 import { NotFound, Unsupported, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
 import { replayViews } from './replay.js'
-import { readHead } from './briefs.js'
+import { mergeAttention, readHead, readReport } from './briefs.js'
 import type { Timeline } from './timeline.js'
 
 // ---- CLI answer shapes (only the keys read here) ----------------------------
@@ -415,11 +415,11 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
   function attentionOf(wiki: WikiSummary, channels: ChannelSummary[], se: SearchStatus): Attention[] {
     const out: Attention[] = []
     for (const c of channels) {
-      if (c.state === 'blocked') out.push({ id: `blocked-${c.id}`, title: `${c.name} can't be fetched`, detail: c.stateNote ?? 'blocked on this machine', severity: 'attention', action: { label: 'Fleet', href: `/w/${wiki.key}/fleet` } })
-      if (c.state === 'failed') out.push({ id: `failed-${c.id}`, title: `${c.name} failed`, detail: c.stateNote ?? '', severity: 'failing' })
+      if (c.state === 'blocked') out.push({ id: `blocked-${c.id}`, title: `${c.name} can't be fetched`, detail: c.stateNote ?? 'blocked on this machine', severity: 'attention', source: c.name, action: { label: 'Fleet', href: `/w/${wiki.key}/fleet` } })
+      if (c.state === 'failed') out.push({ id: `failed-${c.id}`, title: `${c.name} failed`, detail: c.stateNote ?? '', severity: 'failing', source: c.name })
     }
     if (se.realm_ready === false && se.serving && se.serving !== 'search_server')
-      out.push({ id: 'search', title: 'Search is running on the fallback', detail: `engine ${se.realm_reason ?? 'not ready'} · serving ${se.serving}`, severity: 'info' })
+      out.push({ id: 'search', title: 'Search is running on the fallback', detail: `engine ${se.realm_reason ?? 'not ready'} · serving ${se.serving}`, severity: 'info', source: 'search' })
     return out
   }
 
@@ -505,6 +505,13 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     head: async (key, rel) => readHead((await root(key)).path, rel),
   })
 
+  /** Today's briefing and what its page says, when one was written since midnight. */
+  async function todaysReport(key: string) {
+    const r = await root(key)
+    const found = (await soft(briefingList(key), [])).find((b) => b.when >= sinceMidnight())
+    return found ? { briefing: found, read: await readReport(r.path, found.path) } : undefined
+  }
+
   /** document_id → page, and document_id → the wiki pages that list it among their sources. */
   const provIndex = (wiki: string) =>
     memo(`prov:${wiki}`, async () => {
@@ -559,10 +566,9 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       const counts = emptyCounts()
       for (const a of areas) for (const k of Object.keys(counts) as ItemKind[]) counts[k] += a.counts[k]
       const n = total(counts)
-      const attention = attentionOf(w, channels, se)
-      const briefings = await soft(briefingList(key), [])
-      const found = briefings.find((b) => b.when >= sinceMidnight())
-      const todays = found ? { ...found, head: await readHead(r.path, found.path) } : undefined
+      const report = await todaysReport(key)
+      const attention = mergeAttention(report?.read.attention ?? [], attentionOf(w, channels, se), (a) => a.source ?? '')
+      const todays = report ? { ...report.briefing, head: report.read.head } : undefined
       const lede =
         n === 0
           ? `Nothing new since midnight. ${w.running ? `${w.running} agent${w.running > 1 ? 's are' : ' is'} working now.` : 'The next run is in the plan below.'}`
@@ -625,7 +631,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
           runsTotal: todayRuns.length,
           attention: channels.filter((c) => c.state === 'blocked' || c.state === 'failed').length,
         },
-        attention: attentionOf(w, channels, se),
+        attention: mergeAttention((await todaysReport(key))?.read.attention ?? [], attentionOf(w, channels, se), (a) => a.source ?? ''),
         plan: planOf(sc, rn, d),
       }
     },

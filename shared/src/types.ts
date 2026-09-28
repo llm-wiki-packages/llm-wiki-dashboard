@@ -172,6 +172,14 @@ export interface Attention {
   detail: string
   severity: 'info' | 'attention' | 'failing'
   action?: { label: string; href: string }
+  /** Written by the day's briefing, not found by the dashboard. */
+  fromReport?: boolean
+  /** The one next step the report names. */
+  next?: string
+  /** A wiki page the item is about, for the reader. */
+  page?: string
+  /** Where it came from: a channel name or a page title. */
+  source?: string
 }
 
 export interface Briefing {

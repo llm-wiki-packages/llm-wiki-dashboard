@@ -4,6 +4,7 @@
 // serves, so a sales demo never depends on a live pipeline being busy.
 
 import type {
+  Attention,
   LearnedView,
   AskAnswer,
   AreaSummary,
@@ -28,7 +29,7 @@ import type {
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
-import { briefingHead } from './briefs.js'
+import { briefingHead, mergeAttention } from './briefs.js'
 import { NotFound, emptyCounts, linkStem, type Source, type WikiRoot } from './source.js'
 
 const at = (h: number, m = 0, dayOffset = 0): string => {
@@ -218,6 +219,38 @@ function wiki(key: string): WikiSummary {
 }
 
 const RECENT_MS = 15 * 60_000
+
+/** What the morning report says needs the person, the way its frontmatter states it. */
+const reportAttention: Attention[] = [
+  {
+    id: 'report-0',
+    title: "Northwind's security questionnaire is due 10 October",
+    detail: "8 of last year's 22 answers changed with the SSO rollout; the other 14 still hold.",
+    severity: 'attention',
+    fromReport: true,
+    source: 'Gmail · clients',
+    page: 'wiki/security/questionnaires.md',
+    next: 'Send the 14 current answers today and draft the 8 that changed.',
+  },
+  {
+    id: 'report-1',
+    title: 'Rival Inc. raised its Team tier 12%',
+    detail: 'Both renewal threads quote the 2025 price list, which now undercuts them.',
+    severity: 'info',
+    fromReport: true,
+    source: 'Site watch · rival.com',
+    page: 'wiki/playbook/packaging.md',
+    next: 'Check the Northwind and Contoso quotes before they go out.',
+  },
+]
+const hubspotFound = (detail: string): Attention => ({
+  id: 'hubspot-cred',
+  title: "HubSpot pages can't be fetched",
+  detail,
+  severity: 'attention',
+  source: 'HubSpot · pages',
+  action: { label: 'Fix', href: '/fleet' },
+})
 const areaWord = (k: number) => `${k} area${k === 1 ? '' : 's'}`
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
@@ -342,9 +375,7 @@ export function fixturesSource(): Source {
     machines,
     channels: channelsWithCounts(),
     health: { machinesSeen: 3, machinesTotal: 3, runsOk: 90, runsTotal: 91, attention: 1 },
-    attention: [
-      { id: 'hubspot-cred', title: 'HubSpot needs a credential on jmac23-3', detail: 'llm-wiki-cli wiki acme-sales credential set hubspot-api', severity: 'attention', action: { label: 'Add it', href: '#' } },
-    ],
+    attention: mergeAttention(reportAttention, [hubspotFound('llm-wiki-cli wiki acme-sales credential set hubspot-api')], (a) => a.source ?? ''),
     plan,
   })
   return {
@@ -391,9 +422,7 @@ export function fixturesSource(): Source {
         areas: a,
         now: now.slice(0, 3),
         plan,
-        attention: [
-          { id: 'hubspot-cred', title: "HubSpot pages can't be fetched", detail: `no credential on ${THIS_MACHINE} · since Thursday`, severity: 'attention', action: { label: 'Fix', href: '/fleet' } },
-        ],
+        attention: mergeAttention(reportAttention, [hubspotFound(`no credential on ${THIS_MACHINE} · since Thursday`)], (a) => a.source ?? ''),
         briefing: reports[0] && { ...reports[0], head: briefingHead(null, morningBody) },
       }
     },

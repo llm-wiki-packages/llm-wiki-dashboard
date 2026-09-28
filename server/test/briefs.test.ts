@@ -2,7 +2,7 @@
 // otherwise from its first heading and its "worth your attention" list.
 
 import { describe, expect, it } from 'vitest'
-import { briefingHead } from '../src/data/briefs.js'
+import { briefingHead, mergeAttention, reportAttention } from '../src/data/briefs.js'
 
 const body = `# Renewals are the theme this week.
 
@@ -36,5 +36,31 @@ describe('briefingHead', () => {
 
   it('has no head for a page with neither', () => {
     expect(briefingHead(null, 'just text')).toBeUndefined()
+  })
+})
+
+describe('report attention', () => {
+  const fm = {
+    attention: [
+      { title: "Northwind's questionnaire is due 10 Oct", detail: '8 of 22 changed', severity: 'attention', source: 'Gmail · clients', page: 'wiki/security/q.md', action: 'Send the 14 today' },
+      { title: 'Odd severity', severity: 'urgent', page: '../etc/passwd.md' },
+      { detail: 'no title' },
+    ],
+  }
+
+  it('reads each titled item, clamps severity, and keeps only a wiki page path', () => {
+    const items = reportAttention(fm)
+    expect(items.map((a) => a.title)).toEqual(["Northwind's questionnaire is due 10 Oct", 'Odd severity'])
+    expect(items[0]).toMatchObject({ fromReport: true, next: 'Send the 14 today', page: 'wiki/security/q.md' })
+    expect(items[1]).toMatchObject({ severity: 'attention', page: undefined })
+  })
+
+  it('puts the report first and drops what it already named', () => {
+    const found = [
+      { id: 'blocked-gmail', title: "Gmail can't be fetched", detail: '', severity: 'attention' as const, source: 'Gmail · clients' },
+      { id: 'blocked-hubspot', title: "HubSpot can't be fetched", detail: '', severity: 'attention' as const, source: 'HubSpot · pages' },
+    ]
+    const merged = mergeAttention(reportAttention(fm), found, (a) => a.source ?? '')
+    expect(merged.map((a) => a.id)).toEqual(['report-0', 'report-1', 'blocked-hubspot'])
   })
 })
