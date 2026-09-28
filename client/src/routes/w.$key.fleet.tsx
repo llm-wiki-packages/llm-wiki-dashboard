@@ -7,6 +7,7 @@ import { useConfig, useFleet } from '@/lib/api'
 import { clock, n, nowDate } from '@/lib/format'
 import { Card, ErrorNote, SectionLabel, Skeleton, Stat } from '@/components/ui'
 import { Orbit } from '@/components/Orbit'
+import { Starters } from '@/components/Starters'
 
 export const Route = createFileRoute('/w/$key/fleet')({ component: Fleet })
 
@@ -46,6 +47,8 @@ function Fleet() {
           {v.health.attention ? ` · ${v.health.attention} ${v.health.attention === 1 ? 'needs' : 'need'} you` : ''}.
         </p>
       </div>
+
+      {cfg.data && watched === 0 && <Starters wikiKey={key} cli={cfg.data.cli} channelNoun={channelNoun[0]} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Card className="flex flex-col overflow-hidden p-2">

@@ -3,7 +3,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 import { useBriefing, useBriefings, useConfig } from '@/lib/api'
-import { dayLabel } from '@/lib/format'
+import { clock, dayLabel, timeAgo } from '@/lib/format'
 import { Card, ErrorNote, Empty, SectionLabel, Skeleton, cn } from '@/components/ui'
 import { Brief } from '@/components/Brief'
 
@@ -13,6 +13,9 @@ export const Route = createFileRoute('/w/$key/briefings')({
   validateSearch: (s: Record<string, unknown>): Search => ({ id: typeof s.id === 'string' ? s.id : undefined }),
   component: Briefings,
 })
+
+/** `1d` reads as "daily", `1h` as "hourly", anything else as "every <period>". */
+const cadence = (every: string) => ({ '1d': 'daily', '1h': 'hourly', '7d': 'weekly' })[every] ?? `every ${every}`
 
 function Briefings() {
   const { key } = Route.useParams()
@@ -34,7 +37,14 @@ function Briefings() {
           <SectionLabel>Reports</SectionLabel>
         </div>
         {list.data.reports.length === 0 && (
-          <Empty title={`No ${noun[1]} yet`} body="The morning bundle writes the first one under wiki/reports." />
+          <Empty
+            title={`No ${noun[1]} yet`}
+            body={
+              list.data.next
+                ? `The ${list.data.next.bundle} run writes the first one${list.data.next.at ? `, ${timeAgo(list.data.next.at)} (${clock(list.data.next.at)})` : list.data.next.every ? `; it runs ${cadence(list.data.next.every)}` : ''}. Each ${noun[0]} says what changed, what needs you, and links every page it cites.`
+                : `Nothing on the schedule writes one yet. A daily ${noun[0]} says what changed, what needs you, and links every page it cites.`
+            }
+          />
         )}
         {list.data.reports.map((r) => (
           <button
@@ -54,7 +64,7 @@ function Briefings() {
 
       <Card className="min-h-[560px] p-10 lg:px-12">
         {!selectedId ? (
-          <div className="text-ink-2">Pick a report.</div>
+          <div className="text-ink-2">{list.data.reports.length ? 'Pick a report.' : `The first ${noun[0]} will read here.`}</div>
         ) : report.isPending ? (
           <Skeleton className="h-[400px]" />
         ) : report.isError ? (

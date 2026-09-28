@@ -5,7 +5,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMemo } from 'react'
 import type { AreaSummary, ChannelSummary, Counts, NewItem } from '@dashboard/shared/types'
 import { useWhatsNew } from '@/lib/api'
-import { dayLabel, n } from '@/lib/format'
+import { dayLabel, n, timeAgo } from '@/lib/format'
 import { Button, Card, ChannelDot, ErrorNote, Empty, KindBadge, Segmented, Skeleton, cn } from '@/components/ui'
 
 type Search = { since?: '1d' | '7d'; by?: 'area' | 'channel'; area?: string; channel?: string }
@@ -68,7 +68,10 @@ function WhatsNew() {
       </div>
 
       {v.areas.length === 0 ? (
-        <Empty title="Nothing changed in this window" body="Widen to this week, or check the plan on Today." />
+        <Empty
+          title={search.since === '7d' ? 'Nothing new this week' : 'Nothing new yet today'}
+          body={`When a watch pulls something, it lands here grouped by area: new pages, updated ones, and what was distilled.${v.wiki.nextDue ? ` The next run is ${v.wiki.nextDue.bundle}, ${timeAgo(v.wiki.nextDue.at)}.` : ''}${search.since === '7d' ? '' : ' Or widen to this week.'}`}
+        />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
           <div className="flex flex-col gap-2">

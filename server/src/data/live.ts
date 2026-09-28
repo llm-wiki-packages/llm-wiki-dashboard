@@ -630,8 +630,12 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     },
     briefings: async (key): Promise<BriefingsView> => {
       const r = await root(key)
-      const [w, reports] = await Promise.all([summary(r), briefingList(key)])
-      return { wiki: w, reports }
+      const [w, reports, sc] = await Promise.all([summary(r), briefingList(key), schedule(key)])
+      // The bundle that writes reports: the first enabled one whose name says so.
+      const b = sc.bundles.find((x) => x.enabled && /morning|brief|report|daily/i.test(x.name))
+      let at = windowStart(b?.window)
+      if (at && at < new Date().toISOString()) at = new Date(new Date(at).getTime() + 86_400_000).toISOString()
+      return { wiki: w, reports, next: b ? { bundle: b.name, at, every: b.every } : undefined }
     },
     briefing: async (key, id) => {
       const r = await root(key)

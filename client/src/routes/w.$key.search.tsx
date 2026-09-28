@@ -259,6 +259,17 @@ function SearchPage() {
                     <Pill tone="warn">approximate: {results.data.emulated.join(', ')}</Pill>
                   )}
                 </div>
+                {(results.data.degraded || results.data.backend === 'grep') && cfg.data && (
+                  <div className="flex flex-col gap-2 rounded-card bg-warn-bg px-4 py-3 text-sm">
+                    <span>Search is matching your words exactly right now, so results are unranked and may miss pages that say it differently.</span>
+                    <span className="text-warn-ink">
+                      Ranked answers come back when the search service runs. This names the fix:{' '}
+                      <code className="font-mono">
+                        {cfg.data.cli} wiki {key} doctor
+                      </code>
+                    </span>
+                  </div>
+                )}
                 {results.data.hits.length === 0 && (
                   <Empty title="Nothing matched" body="Loosen a filter or widen the dates." />
                 )}

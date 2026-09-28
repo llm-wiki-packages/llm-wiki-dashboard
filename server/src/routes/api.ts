@@ -76,6 +76,7 @@ export function apiRoutes(source: Source): Hono {
       opsVersion: await source.opsVersion().catch(() => null),
       machine: (await source.wikis().catch(() => []))[0]?.path ? '' : '',
       now: new Date().toISOString(),
+      cli: config.cli.length === 1 ? (config.cli[0] ?? '').split('/').pop() ?? '' : config.cli.join(' '),
       ask: {
         models: config.ask.models,
         efforts: config.ask.efforts,

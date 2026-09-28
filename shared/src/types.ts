@@ -23,6 +23,8 @@ export interface AppConfig {
   machine: string
   now: string
   ask: AskOptions
+  /** The machine CLI as a person types it, for the commands empty states show. */
+  cli: string
 }
 
 /** What the Ask gear may choose from; the server refuses anything outside these lists. */
@@ -251,6 +253,8 @@ export interface FleetView {
 export interface BriefingsView {
   wiki: WikiSummary
   reports: Briefing[]
+  /** The bundle that writes reports and when it next runs, when the schedule names one. */
+  next?: { bundle: string; at?: string; every?: string }
 }
 
 export interface TraceRow {

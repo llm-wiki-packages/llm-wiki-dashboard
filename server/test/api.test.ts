@@ -57,6 +57,7 @@ describe('views', () => {
     const res = await app.request('/api/config', { headers })
     const cfg = (await res.json()) as { productName: string; mode: string; source: string }
     expect(cfg.productName).toBe('Mission Control')
+    expect((cfg as unknown as { cli: string }).cli).toBe('llm-wiki-cli')
     expect(cfg.mode).toBe('read')
     expect(cfg.source).toBe('fixtures')
   })
