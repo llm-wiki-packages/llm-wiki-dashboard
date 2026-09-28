@@ -34,6 +34,7 @@ import { CliError, type Runner, type Since } from './cli.js'
 import { isPage, readBody, readPages, type PageMeta } from './pages.js'
 import { NotFound, Unsupported, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
 import { replayViews } from './replay.js'
+import { readHead } from './briefs.js'
 import type { Timeline } from './timeline.js'
 
 // ---- CLI answer shapes (only the keys read here) ----------------------------
@@ -497,6 +498,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     channelsOf,
     areasOf,
     briefings: (key) => briefingList(key),
+    head: async (key, rel) => readHead((await root(key)).path, rel),
   })
 
   return {
@@ -527,7 +529,8 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       const n = total(counts)
       const attention = attentionOf(w, channels, se)
       const briefings = await soft(briefingList(key), [])
-      const todays = briefings.find((b) => b.when >= sinceMidnight())
+      const found = briefings.find((b) => b.when >= sinceMidnight())
+      const todays = found ? { ...found, head: await readHead(r.path, found.path) } : undefined
       const lede =
         n === 0
           ? `Nothing new since midnight. ${w.running ? `${w.running} agent${w.running > 1 ? 's are' : ' is'} working now.` : 'The next run is in the plan below.'}`

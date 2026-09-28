@@ -2,10 +2,11 @@
 // running right now, the plan for the day, and what needs the person.
 
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { FileText, AlertCircle } from 'lucide-react'
-import type { AreaSummary, Counts, NowItem, PlanItem } from '@dashboard/shared/types'
+import { FileText, AlertCircle, ArrowRight, Newspaper } from 'lucide-react'
+import type { AreaSummary, Briefing, Counts, NowItem, PlanItem } from '@dashboard/shared/types'
 import { useConfig, useToday } from '@/lib/api'
 import { clock, greeting, n, nowDate, plural, timeAgo } from '@/lib/format'
+import { useSwitch } from '@/lib/prefs'
 import { Card, ChannelDot, Dot, ErrorNote, Empty, Pill, SectionLabel, Skeleton } from '@/components/ui'
 
 export const Route = createFileRoute('/w/$key/')({ component: Today })
@@ -15,6 +16,8 @@ function Today() {
   const view = useToday(key)
   const cfg = useConfig()
   const wikiNoun = cfg.data?.nouns.wiki ?? (['wiki', 'wikis'] as const)
+  // The briefing leads by default in demo mode; live data leads with the areas until the viewer asks otherwise.
+  const [briefFirst, setBriefFirst] = useSwitch('dashboard.briefFirst', cfg.data?.source === 'fixtures')
 
   if (view.isPending)
     return (
@@ -27,6 +30,7 @@ function Today() {
   const v = view.data
   const running = v.now.filter((x) => x.state === 'running').length
   const needs = v.attention.filter((a) => a.severity !== 'info').length
+  const hero = briefFirst && v.briefing?.head ? v.briefing : undefined
 
   return (
     <div className="flex flex-col gap-6 pt-5">
@@ -43,8 +47,22 @@ function Today() {
             </Pill>
           )}
           {needs > 0 && <Pill tone="warn">{needs} {needs === 1 ? 'needs' : 'need'} you</Pill>}
+          {v.briefing?.head && (
+            <button
+              type="button"
+              aria-pressed={briefFirst}
+              onClick={() => setBriefFirst(!briefFirst)}
+              title={briefFirst ? 'Lead with the areas' : 'Lead with the briefing'}
+              className="inline-flex items-center gap-1.5 rounded-pill border border-line-2 bg-card px-2.5 py-1 text-xs text-ink-2 hover:text-ink"
+            >
+              <Newspaper className="size-3.5" />
+              {briefFirst ? 'Areas first' : 'Briefing first'}
+            </button>
+          )}
         </div>
       </div>
+
+      {hero && <BriefingHero briefing={hero} wikiKey={key} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="flex flex-col gap-4">
@@ -67,14 +85,14 @@ function Today() {
             </div>
           )}
 
-          {v.briefing && (
+          {v.briefing && !hero && (
             <Link
               to="/w/$key/briefings"
               params={{ key }}
               search={{ id: v.briefing.id }}
               className="flex items-center gap-5 rounded-card bg-ink p-5 text-paper"
             >
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-paper/15">
                 <FileText className="size-5" />
               </div>
               <div className="flex grow flex-col gap-1">
@@ -139,6 +157,43 @@ function Today() {
         </div>
       </div>
     </div>
+  )
+}
+
+function BriefingHero({ briefing, wikiKey }: { briefing: Briefing; wikiKey: string }) {
+  const head = briefing.head!
+  return (
+    <section className="flex flex-col gap-5 rounded-card bg-ink p-7 text-paper lg:p-9">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-[13px] uppercase tracking-[0.08em] text-paper/65">
+          <FileText className="size-4" />
+          {briefing.title} · {clock(briefing.when)}
+        </div>
+        <Link
+          to="/w/$key/briefings"
+          params={{ key: wikiKey }}
+          search={{ id: briefing.id }}
+          className="inline-flex items-center gap-1.5 rounded-pill bg-paper px-4 py-2 text-sm font-semibold text-ink"
+        >
+          Read the report <ArrowRight className="size-4" />
+        </Link>
+      </div>
+      {head.lede && <h2 className="display max-w-[980px] text-[34px] leading-[1.15] lg:text-[40px]">{head.lede}</h2>}
+      {head.items.length > 0 && (
+        <ol className="grid gap-4 md:grid-cols-3">
+          {head.items.map((it, i) => (
+            <li key={i} className="flex flex-col gap-2 rounded-xl bg-paper/[0.08] p-4">
+              <div className="flex items-baseline gap-2.5">
+                <span className="display text-[22px] leading-none text-paper/50">{i + 1}</span>
+                <span className="text-[15px] font-semibold leading-snug">{it.title}</span>
+              </div>
+              {it.detail && <p className="line-clamp-4 text-sm leading-[1.5] text-paper/75">{it.detail}</p>}
+              {it.source && <span className="mt-auto self-start rounded-pill bg-paper/15 px-2.5 py-1 text-xs text-paper/80">{it.source}</span>}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   )
 }
 

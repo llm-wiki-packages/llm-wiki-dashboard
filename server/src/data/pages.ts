@@ -31,7 +31,7 @@ export interface PageMeta {
   sources?: Array<{ resource?: string; id?: string }>
 }
 
-const FM = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
+export const FM = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
 
 export function parseFrontmatter(text: string): Record<string, unknown> | null {
   const m = FM.exec(text)

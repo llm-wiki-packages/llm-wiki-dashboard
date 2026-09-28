@@ -38,6 +38,7 @@ export interface ReplayDeps {
   channelsOf(key: string, pages: PageMeta[], discover?: PageMeta[]): Promise<ChannelSummary[]>
   areasOf(channels: ChannelSummary[], pages: PageMeta[]): AreaSummary[]
   briefings(key: string): Promise<Briefing[]>
+  head(key: string, rel: string): Promise<Briefing['head']>
 }
 
 interface Loaded {
@@ -174,7 +175,8 @@ export function replayViews(d: ReplayDeps) {
       const n = total(counts)
       const clock = new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
       const attention = attentionOf(l, at)
-      const briefing = (await d.briefings(key).catch(() => [])).find((b) => b.when >= l.rec.start && b.when <= at)
+      const found = (await d.briefings(key).catch(() => [])).find((b) => b.when >= l.rec.start && b.when <= at)
+      const briefing = found ? { ...found, head: await d.head(key, found.path) } : undefined
       return {
         wiki: w,
         since: l.rec.start,

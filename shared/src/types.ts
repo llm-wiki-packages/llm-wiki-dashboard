@@ -181,6 +181,13 @@ export interface Briefing {
   summary: string
   /** Markdown body, present on the single-report route only. */
   body?: string
+  /** The report's own head: its lede and the items it says are worth attention. Today's briefing carries it. */
+  head?: BriefingHead
+}
+
+export interface BriefingHead {
+  lede: string
+  items: Array<{ title: string; detail: string; source?: string }>
 }
 
 /** One wiki page, for the in-app reader a wikilink opens. */

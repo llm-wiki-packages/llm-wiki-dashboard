@@ -27,6 +27,7 @@ import type {
   TodayView,
   WikiSummary,
 } from '@dashboard/shared/types'
+import { briefingHead } from './briefs.js'
 import { NotFound, emptyCounts, linkStem, type Source, type WikiRoot } from './source.js'
 
 const at = (h: number, m = 0, dayOffset = 0): string => {
@@ -256,7 +257,7 @@ function dayAt(replayAt: string) {
     counts: c,
     runningBy,
     items: items.filter((it) => it.when <= at).map((it) => ({ ...it, when: back(it.when) })),
-    briefing: reports[0] && reports[0].when <= at ? { ...reports[0], when: back(reports[0].when) } : undefined,
+    briefing: reports[0] && reports[0].when <= at ? { ...reports[0], when: back(reports[0].when), head: briefingHead(null, morningBody) } : undefined,
   }
 }
 
@@ -352,7 +353,7 @@ export function fixturesSource(): Source {
         attention: [
           { id: 'hubspot-cred', title: "HubSpot pages can't be fetched", detail: `no credential on ${THIS_MACHINE} · since Thursday`, severity: 'attention', action: { label: 'Fix', href: '/fleet' } },
         ],
-        briefing: reports[0],
+        briefing: reports[0] && { ...reports[0], head: briefingHead(null, morningBody) },
       }
     },
     whatsNew: async (key, _since, when): Promise<NewView> => {
