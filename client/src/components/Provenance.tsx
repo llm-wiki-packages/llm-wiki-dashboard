@@ -8,24 +8,42 @@ import type { ReactNode } from 'react'
 import type { Provenance } from '@dashboard/shared/types'
 import { dayLabel } from '@/lib/format'
 
-const STAGE: Record<string, string> = { distill: 'Distilled', process: 'Processed', revise: 'Revised', enrich: 'Enriched', harvest: 'Captured', migrate: 'Imported' }
+const STAGE: Record<string, string> = {
+  distill: 'Distilled',
+  process: 'Processed',
+  revise: 'Revised',
+  enrich: 'Enriched',
+  harvest: 'Captured',
+  migrate: 'Imported',
+}
 
 export function ProvenanceTrail({ wikiKey, p }: { wikiKey: string; p: Provenance }) {
   const hops: ReactNode[] = []
   if (p.channel)
     hops.push(
       <Hop key="ch" label="Captured from">
-        <Link to="/w/$key/new" params={{ key: wikiKey }} search={{ since: '7d', by: 'channel', channel: p.channel.id }} className="text-accent hover:underline">
+        <Link
+          to="/w/$key/new"
+          params={{ key: wikiKey }}
+          search={{ since: '7d', by: 'channel', channel: p.channel.id }}
+          className="text-accent hover:underline"
+        >
           {p.channel.name}
         </Link>
-        {p.host && !p.channel.name.includes(p.host) && <span className="text-ink-3"> · {p.host}</span>}
+        {p.host && !p.channel.name.includes(p.host) && (
+          <span className="text-ink-3"> · {p.host}</span>
+        )}
       </Hop>,
     )
   if (p.captured?.machine || p.captured?.at)
     hops.push(
       <Hop key="cap" label={p.captured.machine ? 'On' : 'At'}>
         {p.captured.machine && (
-          <Link to="/w/$key/fleet" params={{ key: wikiKey }} className="text-accent hover:underline">
+          <Link
+            to="/w/$key/fleet"
+            params={{ key: wikiKey }}
+            className="text-accent hover:underline"
+          >
             {p.captured.machine}
           </Link>
         )}
@@ -53,8 +71,22 @@ export function ProvenanceTrail({ wikiKey, p }: { wikiKey: string; p: Provenance
     )
   if (!hops.length) return null
   return (
-    <nav aria-label="Where this page came from" className="flex flex-wrap items-stretch gap-x-2 gap-y-3 rounded-xl bg-paper px-4 py-3">
-      {hops.flatMap((h, i) => (i ? [<ChevronRight key={`sep-${i}`} aria-hidden className="size-4 self-center text-ink-3" />, h] : [h]))}
+    <nav
+      aria-label="Where this page came from"
+      className="flex flex-wrap items-stretch gap-x-2 gap-y-3 rounded-xl bg-paper px-4 py-3"
+    >
+      {hops.flatMap((h, i) =>
+        i
+          ? [
+              <ChevronRight
+                key={`sep-${i}`}
+                aria-hidden
+                className="size-4 self-center text-ink-3"
+              />,
+              h,
+            ]
+          : [h],
+      )}
     </nav>
   )
 }
@@ -68,16 +100,34 @@ function Hop({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Pages({ wikiKey, pages }: { wikiKey: string; pages: Array<{ title: string; path?: string; resource?: string }> }) {
+function Pages({
+  wikiKey,
+  pages,
+}: {
+  wikiKey: string
+  pages: Array<{ title: string; path?: string; resource?: string }>
+}) {
   return (
     <span className="flex flex-wrap gap-x-3">
       {pages.map((pg, i) =>
         pg.path ? (
-          <Link key={i} to="/w/$key/page" params={{ key: wikiKey }} search={{ path: pg.path }} className="text-accent hover:underline">
+          <Link
+            key={i}
+            to="/w/$key/page"
+            params={{ key: wikiKey }}
+            search={{ path: pg.path }}
+            className="text-accent hover:underline"
+          >
             {pg.title}
           </Link>
         ) : pg.resource ? (
-          <a key={i} href={pg.resource} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          <a
+            key={i}
+            href={pg.resource}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent hover:underline"
+          >
             {pg.title}
           </a>
         ) : (

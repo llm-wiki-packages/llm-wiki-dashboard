@@ -33,18 +33,31 @@ const STARTERS = [
   },
 ] as const
 
-export function Starters({ wikiKey, cli, channelNoun }: { wikiKey: string; cli: string; channelNoun: string }) {
+export function Starters({
+  wikiKey,
+  cli,
+  channelNoun,
+}: {
+  wikiKey: string
+  cli: string
+  channelNoun: string
+}) {
   const [open, setOpen] = useState<string | null>(null)
   const chosen = STARTERS.find((s) => s.id === open)
   return (
     <Card className="flex flex-col gap-4">
       <SectionLabel>Start a {channelNoun}</SectionLabel>
-      <p className="text-sm text-ink-2">Nothing is watched yet. Point this at where your work happens and it fills in on its own.</p>
+      <p className="text-sm text-ink-2">
+        Nothing is watched yet. Point this at where your work happens and it fills in on its own.
+      </p>
       <div className="grid gap-3 md:grid-cols-3">
         {STARTERS.map((s) => {
           const Icon = s.icon
           return (
-            <div key={s.id} className="flex flex-col gap-2.5 rounded-xl border border-line bg-paper p-4">
+            <div
+              key={s.id}
+              className="flex flex-col gap-2.5 rounded-xl border border-line bg-paper p-4"
+            >
               <div className="flex items-center gap-2.5">
                 <Icon className="size-5 text-accent" />
                 <span className="text-[15px] font-semibold">{s.title}</span>
@@ -80,7 +93,9 @@ export function CommandBlock({ lines }: { lines: string[] }) {
   const text = lines.join('\n')
   return (
     <div className="relative">
-      <pre className="overflow-x-auto rounded-lg bg-ink p-3 pr-12 text-[12.5px] leading-[1.6] text-paper">{text}</pre>
+      <pre className="overflow-x-auto rounded-lg bg-ink p-3 pr-12 text-[12.5px] leading-[1.6] text-paper">
+        {text}
+      </pre>
       <button
         type="button"
         aria-label="Copy the commands"

@@ -10,11 +10,21 @@ import { Button, Pill, Segmented, cn } from './ui'
 
 const dayName = (date: string) => {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]
-  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
+  return new Date(y, m - 1, d).toLocaleDateString([], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
 }
 
 const tickColor = (e: ReplayEvent) =>
-  e.kind === 'page' ? 'var(--color-accent)' : e.kind === 'run-start' ? 'var(--color-live)' : e.detail === 'ok' ? 'var(--color-good)' : 'var(--color-bad)'
+  e.kind === 'page'
+    ? 'var(--color-accent)'
+    : e.kind === 'run-start'
+      ? 'var(--color-live)'
+      : e.detail === 'ok'
+        ? 'var(--color-good)'
+        : 'var(--color-bad)'
 
 export function ReplayBar() {
   const r = useReplay()
@@ -56,14 +66,22 @@ export function ReplayBar() {
           type="button"
           aria-label="Back to the start of the day"
           title="Back to the start of the day"
-          onClick={() => day && r.seek(r.day?.events[0] ? new Date(r.day.events[0].at).getTime() - 10 * 60_000 : start)}
+          onClick={() =>
+            day &&
+            r.seek(r.day?.events[0] ? new Date(r.day.events[0].at).getTime() - 10 * 60_000 : start)
+          }
           className="flex size-9 items-center justify-center rounded-full border border-line-2 text-ink-2 hover:text-ink"
         >
           <RotateCcw className="size-4" />
         </button>
         <Segmented>
           {SPEEDS.map((s) => (
-            <Button key={s.x} active={r.speed === s.x} onClick={() => r.setSpeed(s.x)} className="h-[30px] px-2.5 text-xs">
+            <Button
+              key={s.x}
+              active={r.speed === s.x}
+              onClick={() => r.setSpeed(s.x)}
+              className="h-[30px] px-2.5 text-xs"
+            >
               {s.label}
             </Button>
           ))}
@@ -73,7 +91,10 @@ export function ReplayBar() {
         </div>
         <div className="relative h-9 min-w-[240px] flex-1">
           <div className="absolute inset-x-0 top-[16px] h-1 rounded-sm bg-paper-2" />
-          <div className="absolute left-0 top-[16px] h-1 rounded-sm bg-ink" style={{ width: `${pct(r.clock)}%` }} />
+          <div
+            className="absolute left-0 top-[16px] h-1 rounded-sm bg-ink"
+            style={{ width: `${pct(r.clock)}%` }}
+          />
           {day?.events.map((e, i) => (
             <span
               key={i}
@@ -93,15 +114,29 @@ export function ReplayBar() {
             onChange={(e) => r.seek(Number(e.target.value))}
           />
         </div>
-        <button type="button" aria-label="Leave replay" title="Back to live" onClick={r.stop} className="flex size-9 items-center justify-center rounded-full text-ink-2 hover:text-ink">
+        <button
+          type="button"
+          aria-label="Leave replay"
+          title="Back to live"
+          onClick={r.stop}
+          className="flex size-9 items-center justify-center rounded-full text-ink-2 hover:text-ink"
+        >
           <X className="size-4" />
         </button>
       </div>
-      <div className={cn('flex h-7 items-center gap-2 px-2 text-[13px] text-ink-2', !last && 'opacity-0')}>
+      <div
+        className={cn(
+          'flex h-7 items-center gap-2 px-2 text-[13px] text-ink-2',
+          !last && 'opacity-0',
+        )}
+      >
         {last && (
           <span key={`${last.at}-${r.crossed.length}`} className="replay-ticker truncate">
             <span className="tabular-nums text-ink-3">{clock(last.at)}</span>
-            <span className="mx-2 inline-block size-2 rounded-full align-middle" style={{ background: tickColor(last) }} />
+            <span
+              className="mx-2 inline-block size-2 rounded-full align-middle"
+              style={{ background: tickColor(last) }}
+            />
             <span className="text-ink">{last.title}</span>
             {last.channel && <span> · {last.channel}</span>}
             {last.kind !== 'page' && last.machine && <span> · {last.machine}</span>}

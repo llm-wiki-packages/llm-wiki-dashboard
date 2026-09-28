@@ -23,9 +23,14 @@ import {
 } from '@/components/ui'
 import { DateRangePicker } from '@/components/DateRange'
 
-type Search = { q?: string; k?: number; from?: string; to?: string; mode?: 'answer' } & Partial<
-  Record<SearchFilterKind, string>
->
+type Search = {
+  q?: string
+  k?: number
+  from?: string
+  to?: string
+  mode?: 'answer'
+  floor?: boolean
+} & Partial<Record<SearchFilterKind, string>>
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
 
@@ -77,6 +82,10 @@ function SearchPage() {
     from: search.from,
     to: search.to,
   })
+  // The floor is relative: engines score on different scales, but a hit a quarter as good as the best is noise in a demo.
+  const best = results.data?.hits[0]?.score ?? 0
+  const shown = (results.data?.hits ?? []).filter((h) => !search.floor || h.score >= best * 0.25)
+  const weak = (results.data?.hits.length ?? 0) - shown.length
   const activeCount = Object.keys(filters).length + (search.from || search.to ? 1 : 0)
 
   const options = (kind: SearchFilterKind): string[] => {
@@ -132,6 +141,14 @@ function SearchPage() {
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            id="search-box"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setDraft('')
+                set({ q: undefined })
+              }
+            }}
             placeholder="What did the client say about renewal terms?"
             className="grow bg-transparent text-base outline-none placeholder:text-ink-3"
             aria-label="Search"
@@ -232,6 +249,15 @@ function SearchPage() {
                 ))}
               </Segmented>
             </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(search.floor)}
+                onChange={(e) => set({ floor: e.target.checked || undefined })}
+                className="size-4 accent-[var(--color-accent)]"
+              />
+              Hide weak matches
+            </label>
           </Card>
 
           <div className="flex min-w-0 flex-col gap-3">
@@ -261,7 +287,10 @@ function SearchPage() {
                 </div>
                 {(results.data.degraded || results.data.backend === 'grep') && cfg.data && (
                   <div className="flex flex-col gap-2 rounded-card bg-warn-bg px-4 py-3 text-sm">
-                    <span>Search is matching your words exactly right now, so results are unranked and may miss pages that say it differently.</span>
+                    <span>
+                      Search is matching your words exactly right now, so results are unranked and
+                      may miss pages that say it differently.
+                    </span>
                     <span className="text-warn-ink">
                       Ranked answers come back when the search service runs. This names the fix:{' '}
                       <code className="font-mono">
@@ -273,7 +302,13 @@ function SearchPage() {
                 {results.data.hits.length === 0 && (
                   <Empty title="Nothing matched" body="Loosen a filter or widen the dates." />
                 )}
-                {results.data.hits.map((h) => (
+                {weak > 0 && (
+                  <div className="text-xs text-ink-3">
+                    {weak} weak {weak === 1 ? 'match' : 'matches'} hidden, each under a quarter of
+                    the best score.
+                  </div>
+                )}
+                {shown.map((h) => (
                   <Link
                     key={`${h.rank}-${h.path}`}
                     to="/w/$key/page"

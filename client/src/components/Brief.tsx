@@ -16,7 +16,12 @@ export function Brief({ wikiKey, markdown }: { wikiKey: string; markdown: string
             const target = wikilinkTarget(href)
             if (target) {
               return (
-                <Link to="/w/$key/page" params={{ key: wikiKey }} search={{ link: target }} className="wikilink">
+                <Link
+                  to="/w/$key/page"
+                  params={{ key: wikiKey }}
+                  search={{ link: target }}
+                  className="wikilink"
+                >
                   {children}
                 </Link>
               )

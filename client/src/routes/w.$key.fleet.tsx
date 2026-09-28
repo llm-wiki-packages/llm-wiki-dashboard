@@ -82,12 +82,21 @@ function Fleet() {
             </div>
             {v.attention
               .filter((a) => a.severity !== 'info')
-              .map((a) => (
-                <div key={a.id} className="flex items-center gap-2.5 rounded-[10px] bg-warn-bg px-3 py-2.5 text-[13px]">
-                  <span className="grow">{a.title}</span>
-                  <code className="truncate text-xs text-warn-ink" title={a.detail}>{a.detail}</code>
-                </div>
-              ))}
+              .map((a) =>
+                a.fromReport ? (
+                  <div key={a.id} className="flex flex-col gap-0.5 rounded-[10px] bg-warn-bg px-3 py-2.5 text-[13px]">
+                    <span className="font-medium">{a.title}</span>
+                    {a.detail && <span className="text-xs text-warn-ink">{a.detail}</span>}
+                  </div>
+                ) : (
+                  <div key={a.id} className="flex items-center gap-2.5 rounded-[10px] bg-warn-bg px-3 py-2.5 text-[13px]">
+                    <span className="grow">{a.title}</span>
+                    <code className="truncate text-xs text-warn-ink" title={a.detail}>
+                      {a.detail}
+                    </code>
+                  </div>
+                ),
+              )}
             {v.attention
               .filter((a) => a.severity === 'info')
               .map((a) => (

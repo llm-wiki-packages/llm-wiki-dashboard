@@ -24,7 +24,15 @@ export function SectionLabel({ children, right }: { children: ReactNode; right?:
   )
 }
 
-export function Dot({ color, live, className }: { color: string; live?: boolean; className?: string }) {
+export function Dot({
+  color,
+  live,
+  className,
+}: {
+  color: string
+  live?: boolean
+  className?: string
+}) {
   return (
     <span
       aria-hidden
@@ -42,11 +50,23 @@ export function ChannelDot({ id, live }: { id: string; live?: boolean }) {
 
 export function HealthDot({ health }: { health: Health }) {
   const color =
-    health === 'ok' ? 'var(--color-good)' : health === 'attention' ? 'var(--color-warn)' : 'var(--color-bad)'
+    health === 'ok'
+      ? 'var(--color-good)'
+      : health === 'attention'
+        ? 'var(--color-warn)'
+        : 'var(--color-bad)'
   return <Dot color={color} />
 }
 
-export function Pill({ children, className, tone = 'paper' }: { children: ReactNode; className?: string; tone?: 'paper' | 'accent' | 'warn' | 'live' | 'ink' }) {
+export function Pill({
+  children,
+  className,
+  tone = 'paper',
+}: {
+  children: ReactNode
+  className?: string
+  tone?: 'paper' | 'accent' | 'warn' | 'live' | 'ink'
+}) {
   const tones = {
     paper: 'bg-paper text-ink-2',
     accent: 'bg-accent text-accent-ink',
@@ -55,7 +75,13 @@ export function Pill({ children, className, tone = 'paper' }: { children: ReactN
     ink: 'bg-ink text-paper',
   }
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-medium whitespace-nowrap', tones[tone], className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-medium whitespace-nowrap',
+        tones[tone],
+        className,
+      )}
+    >
       {children}
     </span>
   )
@@ -83,7 +109,11 @@ export function KindBadge({ kind }: { kind: ItemKind }) {
 export function Stat({ value, label, tone }: { value: ReactNode; label: string; tone?: 'warn' }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className={cn('text-2xl font-semibold tabular-nums', tone === 'warn' && 'text-warn-ink')}>{value}</span>
+      <span
+        className={cn('text-2xl font-semibold tabular-nums', tone === 'warn' && 'text-warn-ink')}
+      >
+        {value}
+      </span>
       <span className="text-xs text-ink-2">{label}</span>
     </div>
   )
@@ -104,7 +134,9 @@ export function ErrorNote({ error }: { error: unknown }) {
     <div className="rounded-card bg-bad-bg p-4 text-sm text-bad-ink">
       <div className="font-semibold">Could not load this.</div>
       <div>{e?.message ?? 'unknown error'}</div>
-      {e?.detail && <pre className="mt-2 overflow-auto text-xs whitespace-pre-wrap">{e.detail}</pre>}
+      {e?.detail && (
+        <pre className="mt-2 overflow-auto text-xs whitespace-pre-wrap">{e.detail}</pre>
+      )}
     </div>
   )
 }
@@ -113,7 +145,17 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-card bg-paper-2', className)} />
 }
 
-export function Button({ children, active, onClick, className }: { children: ReactNode; active?: boolean; onClick?: () => void; className?: string }) {
+export function Button({
+  children,
+  active,
+  onClick,
+  className,
+}: {
+  children: ReactNode
+  active?: boolean
+  onClick?: () => void
+  className?: string
+}) {
   return (
     <button
       type="button"
@@ -130,5 +172,7 @@ export function Button({ children, active, onClick, className }: { children: Rea
 }
 
 export function Segmented({ children }: { children: ReactNode }) {
-  return <div className="flex overflow-hidden rounded-pill border border-line-2 bg-card">{children}</div>
+  return (
+    <div className="flex overflow-hidden rounded-pill border border-line-2 bg-card">{children}</div>
+  )
 }

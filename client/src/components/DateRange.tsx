@@ -13,15 +13,25 @@ export interface Range {
   to?: string
 }
 
-const iso = (d: Date | undefined) => (d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : undefined)
+const iso = (d: Date | undefined) =>
+  d
+    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    : undefined
 const parse = (s: string | undefined) => {
   if (!s) return undefined
   const [y, m, d] = s.split('-').map(Number)
   return y && m && d ? new Date(y, m - 1, d) : undefined
 }
-const label = (s: string | undefined) => (s ? parse(s)?.toLocaleDateString([], { day: 'numeric', month: 'short' }) : undefined)
+const label = (s: string | undefined) =>
+  s ? parse(s)?.toLocaleDateString([], { day: 'numeric', month: 'short' }) : undefined
 
-export function DateRangePicker({ value, onChange }: { value: Range; onChange: (r: Range) => void }) {
+export function DateRangePicker({
+  value,
+  onChange,
+}: {
+  value: Range
+  onChange: (r: Range) => void
+}) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -33,15 +43,22 @@ export function DateRangePicker({ value, onChange }: { value: Range; onChange: (
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
 
-  const selected: DayRange | undefined = value.from || value.to ? { from: parse(value.from), to: parse(value.to) } : undefined
-  const text = value.from || value.to ? `${label(value.from) ?? '…'} – ${label(value.to) ?? 'today'}` : 'Any time'
+  const selected: DayRange | undefined =
+    value.from || value.to ? { from: parse(value.from), to: parse(value.to) } : undefined
+  const text =
+    value.from || value.to
+      ? `${label(value.from) ?? '…'} – ${label(value.to) ?? 'today'}`
+      : 'Any time'
 
   return (
     <div ref={box} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={cn('flex h-9 w-full items-center gap-2 rounded-pill border border-line-2 bg-card px-3 text-sm', selected ? 'text-ink' : 'text-ink-2')}
+        className={cn(
+          'flex h-9 w-full items-center gap-2 rounded-pill border border-line-2 bg-card px-3 text-sm',
+          selected ? 'text-ink' : 'text-ink-2',
+        )}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
@@ -62,7 +79,11 @@ export function DateRangePicker({ value, onChange }: { value: Range; onChange: (
         )}
       </button>
       {open && (
-        <div role="dialog" aria-label="Pick a capture window" className="absolute left-0 z-20 mt-2 w-max rounded-card border border-line-2 bg-card p-3 shadow-lg">
+        <div
+          role="dialog"
+          aria-label="Pick a capture window"
+          className="absolute left-0 z-20 mt-2 w-max rounded-card border border-line-2 bg-card p-3 shadow-lg"
+        >
           <DayPicker
             mode="range"
             numberOfMonths={2}
@@ -72,7 +93,9 @@ export function DateRangePicker({ value, onChange }: { value: Range; onChange: (
             showOutsideDays
           />
           <div className="flex justify-between border-t border-line pt-2 text-xs text-ink-2">
-            <button type="button" className="hover:text-ink" onClick={() => onChange({})}>Clear</button>
+            <button type="button" className="hover:text-ink" onClick={() => onChange({})}>
+              Clear
+            </button>
             <div className="flex gap-3">
               {[
                 ['7 days', 7],
@@ -94,7 +117,9 @@ export function DateRangePicker({ value, onChange }: { value: Range; onChange: (
                 </button>
               ))}
             </div>
-            <button type="button" className="font-semibold text-ink" onClick={() => setOpen(false)}>Done</button>
+            <button type="button" className="font-semibold text-ink" onClick={() => setOpen(false)}>
+              Done
+            </button>
           </div>
         </div>
       )}

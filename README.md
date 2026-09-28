@@ -64,6 +64,12 @@ accepts only the models and efforts `DASHBOARD_ASK_MODELS` and
 (`skills/ask`). Live mode needs a CLI with `skills run`; until then the page
 says so, and demo mode answers from the fixtures.
 
+## Presenting
+
+`/` jumps to Search from any screen and `Esc` clears it. The "demo data"
+label hides with its ×, and `d` brings it back. Every screen is checked at
+1280×800 for clipped text and sideways scroll.
+
 ## Customizing
 
 Fork. Change `shared/src/brand.ts` and `client/src/theme.css` first; that
