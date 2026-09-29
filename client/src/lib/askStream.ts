@@ -22,6 +22,12 @@ export interface AskRun {
   startedAt?: number
 }
 
+/** What the status line says before the session has reported a step. A silent start (a login, a slow network route, retries) should not look hung or dead. */
+export function startingLabel(elapsedS: number): string {
+  if (elapsedS < 20) return 'Starting a session…'
+  return `Still starting… the session has not reported a step in ${elapsedS}s. Stop it if this looks stuck`
+}
+
 export const askKey = (key: string, r: AskRequest) => ['wiki', key, 'ask', r.q, r.model ?? '', r.effort ?? '', r.skill, r.agent ?? '']
 
 export function useAskStream(key: string) {

@@ -10,7 +10,7 @@ import { Search as SearchIcon, Settings2, Sparkles } from 'lucide-react'
 import { SEARCH_FILTER_KINDS, type AskAnswer, type AskRequest, type AskStatus, type SearchFilterKind } from '@dashboard/shared/types'
 import { ApiError, useAskStatus, useConfig, useFacets, useSearch } from '@/lib/api'
 import { useAskSettings, type AskSettings } from '@/lib/askSettings'
-import { useAskStream } from '@/lib/askStream'
+import { startingLabel, useAskStream } from '@/lib/askStream'
 import { settledMarkdown } from '@/lib/sse'
 import { Brief } from '@/components/Brief'
 import {
@@ -543,7 +543,7 @@ function AnswerPanel({
                 {mine.tool.detail && <span className="text-ink-2"> · {mine.tool.detail.slice(0, 200)}</span>}
               </>
             ) : (
-              'Starting a session…'
+              startingLabel(elapsed)
             )}
           </span>
           <span className="shrink-0 tabular-nums text-sm text-ink-2">{elapsed}s</span>
