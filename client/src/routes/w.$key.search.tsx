@@ -10,7 +10,7 @@ import { Search as SearchIcon, Settings2, Sparkles } from 'lucide-react'
 import { SEARCH_FILTER_KINDS, type AskAnswer, type AskRequest, type AskStatus, type SearchFilterKind } from '@dashboard/shared/types'
 import { ApiError, useAskStatus, useConfig, useFacets, useSearch } from '@/lib/api'
 import { useAskSettings, type AskSettings } from '@/lib/askSettings'
-import { startingLabel, useAskStream } from '@/lib/askStream'
+import { startingLabel, toolDetail, useAskStream } from '@/lib/askStream'
 import { settledMarkdown } from '@/lib/sse'
 import { Brief } from '@/components/Brief'
 import {
@@ -540,7 +540,7 @@ function AnswerPanel({
             {mine.tool ? (
               <>
                 {mine.tool.name}
-                {mine.tool.detail && <span className="text-ink-2"> · {mine.tool.detail.slice(0, 200)}</span>}
+                {toolDetail(mine.tool.detail) && <span className="text-ink-2"> · {toolDetail(mine.tool.detail)}</span>}
               </>
             ) : (
               startingLabel(elapsed)

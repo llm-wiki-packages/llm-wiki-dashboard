@@ -9,7 +9,7 @@
 //   the real shapes. `FAKE_CLI_JAIL` names the jail (default `none`),
 //   `FAKE_CLI_SANDBOXES` the enabled sandboxes (default `no-network,read-search`),
 //   `FAKE_CLI_TEMPLATES` the wiki's templates (default `harvest,no-network,read-search`),
-//   `FAKE_CLI_AGENTS` the enabled agents (default none).
+//   `FAKE_CLI_AGENTS` the enabled agents (default none), `FAKE_CLI_WIKI_PATH` the wiki's directory.
 // - `harness run … --stream` prints the normalized JSON lines, one every
 //   `FAKE_CLI_STREAM_MS` (default 20ms). `FAKE_CLI_PIDFILE` gets its pid, and
 //   `FAKE_CLI_STREAM=hang` keeps it printing until it is killed.
@@ -31,7 +31,7 @@ if (env.FAKE_CLI_FAIL === '1' || env.FAKE_CLI_FAIL === verb[0]) {
 }
 
 if (is('machine', 'wikis', 'ls')) {
-  out({ wikis: [{ key: 'kb', name: 'KB', path: '/tmp/fake-kb' }] })
+  out({ wikis: [{ key: 'kb', name: 'KB', path: env.FAKE_CLI_WIKI_PATH ?? '/tmp/fake-kb' }] })
 } else if (is('whereami')) {
   out({ wiki: '/tmp/fake-kb', sandbox: { jail: env.FAKE_CLI_JAIL ?? 'none' } })
 } else if (is('sandboxes', 'ls')) {

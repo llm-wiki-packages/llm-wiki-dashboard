@@ -7,7 +7,9 @@ export const WIKILINK_SCHEME = 'wikilink:'
 export function withWikilinks(markdown: string): string {
   return markdown.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, alias?: string) => {
     const label = (alias ?? target).trim()
-    return `[${label}](${WIKILINK_SCHEME}${encodeURIComponent(target.trim())})`
+    // The alias rides along, so a stem many pages share (`_index`) can be told apart by the title cited.
+    const link = alias?.trim() ? `${target.trim()}|${alias.trim()}` : target.trim()
+    return `[${label}](${WIKILINK_SCHEME}${encodeURIComponent(link)})`
   })
 }
 

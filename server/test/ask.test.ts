@@ -2,7 +2,7 @@
 // llm-wiki-cli: the refusals answer as JSON before any event, an answer
 // streams as server-sent events, and a browser that leaves kills the session.
 
-import { readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,7 +16,7 @@ process.env.DASHBOARD_TOKEN_REQUIRED = '0'
 process.env.DASHBOARD_OPEN = '0'
 process.env.DASHBOARD_STATE_DIR = ':memory:'
 
-const FAKE = ['FAKE_CLI_REFUSE', 'FAKE_CLI_FAIL', 'FAKE_CLI_JAIL', 'FAKE_CLI_SANDBOXES', 'FAKE_CLI_TEMPLATES', 'FAKE_CLI_AGENTS', 'FAKE_CLI_STREAM', 'FAKE_CLI_PIDFILE', 'FAKE_CLI_ARGVFILE']
+const FAKE = ['FAKE_CLI_REFUSE', 'FAKE_CLI_FAIL', 'FAKE_CLI_JAIL', 'FAKE_CLI_SANDBOXES', 'FAKE_CLI_TEMPLATES', 'FAKE_CLI_AGENTS', 'FAKE_CLI_STREAM', 'FAKE_CLI_PIDFILE', 'FAKE_CLI_ARGVFILE', 'FAKE_CLI_WIKI_PATH']
 afterEach(() => {
   for (const k of FAKE) delete process.env[k]
 })
@@ -172,5 +172,26 @@ describe('ask refusals', () => {
     expect((await post(app, { ...body, skill: 'ask' })).status).toBe(400)
     expect((await post(app, { ...body, agent: 'intruder' })).status).toBe(400)
     expect((await post(app, { ...body, agent: '--dangerously-skip-permissions' })).status).toBe(400)
+  })
+})
+
+describe('citations', () => {
+  it('opens the page a citation names when many pages share its file stem', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'dash-wiki-'))
+    try {
+      for (const [sub, title] of [['leads', 'Leads — Course Index'], ['offers', 'Offers — Course Index']] as const) {
+        mkdirSync(resolve(dir, 'sources/scrapes/site/pages', sub), { recursive: true })
+        writeFileSync(resolve(dir, 'sources/scrapes/site/pages', sub, '_index.md'), `---\ntitle: ${title}\n---\n\n# ${title}\n`)
+      }
+      process.env.FAKE_CLI_WIKI_PATH = dir
+      const app = await mk()
+      const get = async (link: string) => ((await app.request(`/api/wikis/kb/resolve?link=${encodeURIComponent(link)}`, { headers })).json()) as Promise<{ path?: string }>
+      expect((await get('_index|Offers — Course Index')).path).toBe('sources/scrapes/site/pages/offers/_index.md')
+      expect((await get('_index|leads - course index')).path).toBe('sources/scrapes/site/pages/leads/_index.md')
+      // No title to go by: the first page still opens, as before.
+      expect((await get('_index')).path).toMatch(/_index\.md$/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

@@ -31,7 +31,7 @@ function PageReader() {
   if (!path && link && resolved.isError)
     return (
       <div className="mx-auto max-w-3xl pt-8">
-        <Empty title={`No page for [[${link}]]`} body={`Nothing in this ${wikiNoun} has that name yet. The link may point at a page a later run will write.`} />
+        <Empty title={`No page for [[${link.split('|')[0]}]]`} body={`Nothing in this ${wikiNoun} has that name yet. The link may point at a page a later run will write.`} />
         <p className="mt-4 text-sm text-ink-2">
           <Link to="/w/$key/briefings" params={{ key }} className="text-accent">
             Back to briefings

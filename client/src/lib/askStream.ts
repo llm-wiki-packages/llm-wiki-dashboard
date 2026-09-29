@@ -28,6 +28,29 @@ export function startingLabel(elapsedS: number): string {
   return `Still starting… the session has not reported a step in ${elapsedS}s. Stop it if this looks stuck`
 }
 
+/** A step's detail, as one readable line. The CLI relays a tool's input as JSON text; its own description of the step reads best, then the command, path or query. It is the agent's text, so it is only ever shown as text. */
+export function toolDetail(detail: string | undefined): string | undefined {
+  const raw = detail?.trim()
+  if (!raw) return undefined
+  if (raw.startsWith('{')) {
+    try {
+      const j = JSON.parse(raw) as Record<string, unknown>
+      for (const k of ['description', 'command', 'file_path', 'path', 'pattern', 'query', 'url']) {
+        const v = j[k]
+        if (typeof v === 'string' && v.trim()) return v.trim().slice(0, 200)
+      }
+    } catch {
+      // The CLI caps a detail at 200 characters, so a long command arrives cut off mid-string:
+      // take the first key that has opened, whether or not its quote has closed.
+      for (const k of ['description', 'command', 'file_path', 'path', 'pattern', 'query', 'url']) {
+        const m = new RegExp(`"${k}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`).exec(raw)
+        if (m?.[1]?.trim()) return m[1].replace(/\\(["\\/])/g, '$1').trim().slice(0, 200)
+      }
+    }
+  }
+  return raw.slice(0, 200)
+}
+
 export const askKey = (key: string, r: AskRequest) => ['wiki', key, 'ask', r.q, r.model ?? '', r.effort ?? '', r.skill, r.agent ?? '']
 
 export function useAskStream(key: string) {

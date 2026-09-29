@@ -501,11 +501,14 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       .sort((a, b) => b.when.localeCompare(a.when))
   }
 
-  /** Every page's file stem → path, the way an editor resolves `[[links]]`; rebuilt at most once a minute. */
+  /** Every page's file stem → paths, the way an editor resolves `[[links]]`; rebuilt at most once a
+   *  minute. `first` keeps one path per stem (`wiki/` is walked first, so a distilled page outranks
+   *  its source); `all` keeps every path, for the stems many pages share, like `_index`. */
   const stems = (wiki: string) =>
     memo(`stems:${wiki}`, async () => {
       const r = await root(wiki)
       const index = new Map<string, string>()
+      const all = new Map<string, string[]>()
       async function walk(rel: string, depth: number): Promise<void> {
         if (depth > 8) return
         let entries: import('node:fs').Dirent[]
@@ -522,11 +525,12 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
             const key = stemKey(e.name.replace(/\.md$/, ''))
             // The first hit wins, and `wiki/` is walked first: a distilled page outranks its source.
             if (!index.has(key)) index.set(key, p)
+            all.set(key, [...(all.get(key) ?? []), p])
           }
         }
       }
       for (const top of ['wiki', 'research', 'sources']) await walk(top, 0)
-      return index
+      return { first: index, all }
     })
 
   /** Every page's frontmatter, for the filter values; rebuilt at most once a minute (memo) and cheap
@@ -535,7 +539,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     memo(`allpages:${wiki}`, async () => {
       const r = await root(wiki)
       const index = await stems(wiki)
-      return readPages(r.path, [...index.values()])
+      return readPages(r.path, [...index.first.values()])
     })
 
   const replay = replayViews({
@@ -729,7 +733,16 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       const index = await stems(key)
       const stem = linkStem(link)
       if (!stem) return null
-      const path = index.get(stemKey(stem))
+      const k = stemKey(stem)
+      const paths = index.all.get(k) ?? []
+      // Many pages can share a stem (`_index`). The citation's title, after the `|`, says which one.
+      const title = titleKey(link.split('|')[1])
+      if (paths.length > 1 && title) {
+        const r = await root(key)
+        const match = (await readPages(r.path, paths)).find((p) => titleKey(p.title) === title)
+        if (match) return { link, path: match.rel }
+      }
+      const path = index.first.get(k)
       return path ? { link, path } : null
     },
     search: async (key, params): Promise<SearchView> => {
@@ -906,6 +919,11 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       }
     },
   }
+}
+
+/** A page title the way a citation writes it: case, dashes and spacing do not tell two titles apart. */
+export function titleKey(s: string | undefined): string {
+  return (s ?? '').toLowerCase().replace(/[\s\u2010-\u2015_-]+/g, ' ').trim()
 }
 
 /** A local calendar date, YYYY-MM-DD. */
