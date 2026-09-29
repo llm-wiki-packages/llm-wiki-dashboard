@@ -79,7 +79,7 @@ own), the skill and, when the wiki has enabled agents, the agent, kept per
 browser. The server accepts only what `DASHBOARD_ASK_MODELS`,
 `DASHBOARD_ASK_EFFORTS` and `DASHBOARD_ASK_SKILLS` list (default skill
 `llm-wiki:search`, which the llm-wiki plugin ships with an answer mode), and one
-question at a time per wiki. The stream is the CLI's own JSON lines relayed as
+question at a time per wiki (`DASHBOARD_ASK_CONCURRENCY` raises that; each answer is a paid session). The stream is the CLI's own JSON lines relayed as
 server-sent events; there is no AI library. An answer is an agent's words, so
 the page never loads anything from it: an image renders as a link.
 

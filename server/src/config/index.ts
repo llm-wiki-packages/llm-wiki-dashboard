@@ -58,6 +58,8 @@ const Env = z.object({
   DASHBOARD_ASK_EFFORTS: z.string().default('low,medium,high,xhigh,max'),
   /** The skills a question may run through, comma-separated; the first is the default. */
   DASHBOARD_ASK_SKILLS: z.string().default('llm-wiki:search'),
+  /** How many answers one wiki may run at once; each is a paid agent session. */
+  DASHBOARD_ASK_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(1),
   /** How long one answer may take, in milliseconds. */
   DASHBOARD_ASK_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
   DASHBOARD_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -109,6 +111,7 @@ export const config = {
     skills: skills(env.DASHBOARD_ASK_SKILLS),
     /** How long whether a wiki can answer is reused. */
     statusMs: 30_000,
+    concurrency: env.DASHBOARD_ASK_CONCURRENCY,
     timeoutMs: env.DASHBOARD_ASK_TIMEOUT_MS,
   },
   /** What every CLI child gets. The read floor is added per verb in data/cli.ts,

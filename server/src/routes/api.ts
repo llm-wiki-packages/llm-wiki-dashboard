@@ -173,7 +173,12 @@ export function apiRoutes(source: Source): Hono {
   // Runs an agent session, so it is a POST: a prefetch or a crawler never starts one.
   // A refusal answers as JSON before any event; once the session has started,
   // its events stream as server-sent events and a failure is an `error` event.
-  const asking = new Set<string>()
+  const asking = new Map<string, number>()
+  const release = (key: string) => {
+    const n = (asking.get(key) ?? 1) - 1
+    if (n > 0) asking.set(key, n)
+    else asking.delete(key)
+  }
   api.post('/wikis/:key/ask', async (c) => {
     const key = c.req.param('key')
     let raw: Partial<AskRequest>
@@ -197,9 +202,13 @@ export function apiRoutes(source: Source): Hono {
         return c.json({ error: agents.length ? `agent must be one of ${agents.join(', ')}` : 'this wiki has no enabled agents' }, 400)
       req.agent = raw.agent
     }
-    // Each answer is a paid agent session: one at a time per wiki.
-    if (asking.has(key)) throw new Busy('This wiki is already answering a question; wait for it or stop it')
-    asking.add(key)
+    // Each answer is a paid agent session, so a wiki runs only `concurrency` at once (default 1).
+    const running = asking.get(key) ?? 0
+    if (running >= config.ask.concurrency)
+      throw new Busy(
+        `This wiki is already answering ${running === 1 ? 'a question' : `${running} questions`}; wait for one or stop it`,
+      )
+    asking.set(key, running + 1)
     const stop = new AbortController()
     const abort = () => stop.abort()
     c.req.raw.signal.addEventListener('abort', abort, { once: true })
@@ -208,7 +217,7 @@ export function apiRoutes(source: Source): Hono {
     try {
       first = await events.next()
     } catch (e) {
-      asking.delete(key)
+      release(key)
       throw e
     }
     return streamSSE(c, async (stream) => {
@@ -224,7 +233,7 @@ export function apiRoutes(source: Source): Hono {
         clearInterval(beat)
         c.req.raw.signal.removeEventListener('abort', abort)
         await events.return(undefined)
-        asking.delete(key)
+        release(key)
       }
     })
   })
