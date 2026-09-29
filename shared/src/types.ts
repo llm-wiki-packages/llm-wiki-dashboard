@@ -31,20 +31,33 @@ export interface AppConfig {
 export interface AskOptions {
   models: string[]
   efforts: string[]
+  /** Skill names the CLI runs with `--skill`, like `llm-wiki:ask`. */
+  skills: string[]
   defaultModel: string
   defaultEffort: string
-  defaultPrefix: string
+  defaultSkill: string
 }
 
-/** One question for the wiki, run as `<prefix> <q>` in an agent session. */
+/** Whether this wiki can answer here, and if not, why and what fixes it. */
+export interface AskStatus {
+  available: boolean
+  reason?: string
+  /** A command that fixes it, when one does. */
+  fix?: string
+  /** The wiki's enabled agents; the gear offers a picker only when there are some. */
+  agents: string[]
+}
+
+/** One question for the wiki, run through `run-harness --skill <skill>` in a jailed session. */
 export interface AskRequest {
   q: string
   model: string
   effort: string
-  /** A slash command naming the skill, like `/ask`. */
-  prefix: string
+  skill: string
+  agent?: string
 }
 
+/** What a finished answer carries. */
 export interface AskAnswer {
   q: string
   /** Markdown with [[wikilink]] citations. */
@@ -54,7 +67,16 @@ export interface AskAnswer {
   effort: string
   elapsedS: number
   session?: string
+  outcome?: string
 }
+
+/** The CLI's `--stream` lines, normalized; the server relays these as server-sent events. */
+export type AskEvent =
+  | { type: 'start' }
+  | { type: 'text'; text: string }
+  | { type: 'tool'; name: string; detail?: string }
+  | ({ type: 'result' } & AskAnswer)
+  | { type: 'error'; message: string; detail?: string }
 
 export interface HealthReport {
   ok: boolean

@@ -1,6 +1,7 @@
 // The Ask gear's choices, kept per browser like the theme. Each is checked
 // against the lists the server offers, so a stale or edited value falls back
-// to the default instead of being sent and refused.
+// to the default instead of being sent and refused. The key carries a version:
+// the first draft kept a free-text prefix that no longer exists.
 
 import { useCallback, useState } from 'react'
 import type { AskOptions } from '@dashboard/shared/types'
@@ -8,11 +9,12 @@ import type { AskOptions } from '@dashboard/shared/types'
 export interface AskSettings {
   model: string
   effort: string
-  prefix: string
+  skill: string
+  /** An agent name; only sent when the wiki has it enabled. */
+  agent?: string
 }
 
-const KEY = 'dashboard.ask'
-const PREFIX = /^\/[a-z0-9][a-z0-9-]{0,63}$/
+const KEY = 'dashboard.ask.v2'
 
 function read(): Partial<AskSettings> {
   try {
@@ -26,11 +28,10 @@ export function settle(raw: Partial<AskSettings>, opts: AskOptions): AskSettings
   return {
     model: raw.model && opts.models.includes(raw.model) ? raw.model : opts.defaultModel,
     effort: raw.effort && opts.efforts.includes(raw.effort) ? raw.effort : opts.defaultEffort,
-    prefix: raw.prefix && PREFIX.test(raw.prefix) ? raw.prefix : opts.defaultPrefix,
+    skill: raw.skill && opts.skills.includes(raw.skill) ? raw.skill : opts.defaultSkill,
+    agent: typeof raw.agent === 'string' && raw.agent ? raw.agent : undefined,
   }
 }
-
-export const validPrefix = (v: string) => PREFIX.test(v)
 
 export function useAskSettings(opts: AskOptions | undefined): [AskSettings | undefined, (patch: Partial<AskSettings>) => void] {
   const [raw, setRaw] = useState<Partial<AskSettings>>(read)

@@ -3,9 +3,10 @@
 // free-text inputs (`since`, a replay `at` or date, a briefing id) are validated here.
 
 import { Hono } from 'hono'
+import { streamSSE } from 'hono/streaming'
 import { brand } from '@dashboard/shared/brand'
 import { SEARCH_FILTER_KINDS } from '@dashboard/shared/types'
-import type { AppConfig, AskRequest, HealthReport, SearchParams } from '@dashboard/shared/types'
+import type { AppConfig, AskEvent, AskRequest, HealthReport, SearchParams } from '@dashboard/shared/types'
 import { config } from '../config/index.js'
 import { CliError, type Since } from '../data/cli.js'
 import { NotFound, Unsupported, type Source } from '../data/source.js'
@@ -31,7 +32,7 @@ export function apiRoutes(source: Source): Hono {
 
   api.onError((err, c) => {
     if (err instanceof NotFound) return c.json({ error: err.message }, 404)
-    if (err instanceof Unsupported) return c.json({ error: err.message, kind: 'unsupported' }, 501)
+    if (err instanceof Unsupported) return c.json({ error: err.message, kind: 'unsupported', fix: err.fix }, 501)
     if (err instanceof CliError) {
       const status = err.kind === 'args' ? 400 : err.kind === 'spawn' ? 503 : 502
       return c.json({ error: err.message, kind: err.kind, stderr: err.stderr }, status)
@@ -76,13 +77,14 @@ export function apiRoutes(source: Source): Hono {
       opsVersion: await source.opsVersion().catch(() => null),
       machine: (await source.wikis().catch(() => []))[0]?.path ? '' : '',
       now: new Date().toISOString(),
-      cli: config.cli.length === 1 ? (config.cli[0] ?? '').split('/').pop() ?? '' : config.cli.join(' '),
+      cli: config.cliName,
       ask: {
         models: config.ask.models,
         efforts: config.ask.efforts,
         defaultModel: config.ask.models[0] ?? '',
         defaultEffort: config.ask.efforts[0] ?? '',
-        defaultPrefix: config.ask.prefix,
+        skills: config.ask.skills,
+        defaultSkill: config.ask.skills[0] ?? '',
       },
     }
     return c.json(body)
@@ -167,8 +169,14 @@ export function apiRoutes(source: Source): Hono {
     return c.json(await source.search(c.req.param('key'), params))
   })
 
+  api.get('/wikis/:key/ask', async (c) => c.json(await source.askStatus(c.req.param('key'))))
+
   // Runs an agent session, so it is a POST: a prefetch or a crawler never starts one.
+  // A refusal answers as JSON before any event; once the session has started,
+  // its events stream as server-sent events and a failure is an `error` event.
+  const asking = new Set<string>()
   api.post('/wikis/:key/ask', async (c) => {
+    const key = c.req.param('key')
     let raw: Partial<AskRequest>
     try {
       raw = (await c.req.json()) as Partial<AskRequest>
@@ -179,11 +187,47 @@ export function apiRoutes(source: Source): Hono {
     if (!q || q.length > 2000) return c.json({ error: 'q must be 1–2000 characters' }, 400)
     const model = raw.model ?? config.ask.models[0]
     const effort = raw.effort ?? config.ask.efforts[0]
+    const skill = raw.skill ?? config.ask.skills[0]
     if (!model || !config.ask.models.includes(model)) return c.json({ error: `model must be one of ${config.ask.models.join(', ')}` }, 400)
     if (!effort || !config.ask.efforts.includes(effort)) return c.json({ error: `effort must be one of ${config.ask.efforts.join(', ')}` }, 400)
-    const prefix = raw.prefix ?? config.ask.prefix
-    if (typeof prefix !== 'string' || !/^\/[a-z0-9][a-z0-9-]{0,63}$/.test(prefix)) return c.json({ error: 'prefix must be a slash command like /ask' }, 400)
-    return c.json(await source.ask(c.req.param('key'), { q, model, effort, prefix }))
+    if (!skill || !config.ask.skills.includes(skill)) return c.json({ error: `skill must be one of ${config.ask.skills.join(', ')}` }, 400)
+    const req: AskRequest = { q, model, effort, skill }
+    if (raw.agent !== undefined && raw.agent !== '') {
+      const { agents } = await source.askStatus(key)
+      if (typeof raw.agent !== 'string' || !agents.includes(raw.agent))
+        return c.json({ error: agents.length ? `agent must be one of ${agents.join(', ')}` : 'this wiki has no enabled agents' }, 400)
+      req.agent = raw.agent
+    }
+    // Each answer is a paid agent session: one at a time per wiki.
+    if (asking.has(key)) return c.json({ error: 'this wiki is already answering a question; wait for it or stop it' }, 429)
+    asking.add(key)
+    const stop = new AbortController()
+    const abort = () => stop.abort()
+    c.req.raw.signal.addEventListener('abort', abort, { once: true })
+    const events = source.ask(key, req, stop.signal)
+    let first: IteratorResult<AskEvent>
+    try {
+      first = await events.next()
+    } catch (e) {
+      asking.delete(key)
+      throw e
+    }
+    return streamSSE(c, async (stream) => {
+      stream.onAbort(abort)
+      const send = (ev: AskEvent) => stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) })
+      // A comment line every 15s keeps proxies from closing a quiet stream during a long tool call.
+      const beat = setInterval(() => void stream.write(': keep-alive\n\n'), 15_000)
+      try {
+        for (let r = first; !r.done && !stop.signal.aborted; r = await events.next()) await send(r.value)
+      } catch (e) {
+        await send({ type: 'error', message: e instanceof Error ? e.message : 'the session failed' })
+      } finally {
+        clearInterval(beat)
+        c.req.raw.signal.removeEventListener('abort', abort)
+        await events.return(undefined)
+        asking.delete(key)
+      }
+    })
   })
 
   api.get('/wikis/:key/facets', async (c) => c.json(await source.facets(c.req.param('key'))))

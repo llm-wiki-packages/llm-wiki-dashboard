@@ -3,7 +3,7 @@
 // from the browser to this file: they pick a verb and pass typed values, and
 // the wiki key must already be one the registry answered.
 
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { config } from '../config/index.js'
 
 export type Since = `${number}${'h' | 'd'}`
@@ -22,8 +22,10 @@ export interface Args {
   sha?: string
   /** A session id or op name, for `op show`. */
   target?: string
-  /** An enabled skill's name, for `skills run`. */
+  /** A skill name for `run-harness --skill`, like `llm-wiki:ask`. */
   skill?: string
+  /** An enabled agent's name, for `run-harness --agent`. */
+  agent?: string
   model?: string
   effort?: string
 }
@@ -31,7 +33,12 @@ export interface Args {
 export interface RunOptions {
   /** Overrides the configured per-call timeout. */
   timeoutMs?: number
+  /** Kills the child when it aborts; `stream` only. */
+  signal?: AbortSignal
 }
+
+/** The sandbox a question runs in: reads the wiki, reaches the models and the search port. */
+export const ASK_SANDBOX = 'read-search'
 
 const KEY = /^[a-z0-9][a-z0-9_-]{0,63}$/
 const SINCE = /^\d{1,3}[hd]$/
@@ -102,7 +109,7 @@ function target(v: string | undefined): string {
 }
 
 const WORD = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
-const SKILL = /^[a-z0-9][a-z0-9-]{0,63}$/
+const SKILL = /^[a-z0-9][a-z0-9-]{0,63}(:[a-z0-9][a-z0-9-]{0,63})?$/
 
 function word(v: string | undefined, what: string): string {
   if (!v || !WORD.test(v)) throw new CliError(`bad ${what}: ${String(v)}`, 'args')
@@ -144,12 +151,18 @@ export const VERBS = {
   'wiki.search.query': (a: Args) => [
     'wiki', '--read-only', key(a.wiki), 'search', 'query', ...searchFilters(a), '--json', '--', text(a.text),
   ],
-  // Proposed in the plugins repo (skills run); the question goes after `--`.
-  'wiki.skills.run': (a: Args) => {
+  'wiki.whereami': (a: Args) => wiki(a, 'whereami'),
+  'wiki.sandboxes.ls': (a: Args) => wiki(a, 'sandboxes', 'ls'),
+  'wiki.agents.ls': (a: Args) => wiki(a, 'agents', 'ls', '--enabled'),
+  // One question in a jailed harness session, streamed as JSON lines. Spelled
+  // out rather than through wiki(): `--stream` replaces `--json`, and the
+  // question goes after `--` so it is never read as a flag.
+  'wiki.run-harness': (a: Args) => {
     if (!a.skill || !SKILL.test(a.skill)) throw new CliError(`bad skill: ${String(a.skill)}`, 'args')
     return [
-      'wiki', '--read-only', key(a.wiki), 'skills', 'run', a.skill,
-      `model=${word(a.model, 'model')}`, `effort=${word(a.effort, 'effort')}`, '--json', '--', question(a.text),
+      'wiki', '--read-only', key(a.wiki), 'run-harness', '--sandbox', ASK_SANDBOX, '--skill', a.skill,
+      ...(a.agent !== undefined ? ['--agent', word(a.agent, 'agent')] : []),
+      `model=${word(a.model, 'model')}`, `effort=${word(a.effort, 'effort')}`, '--stream', '--', question(a.text),
     ]
   },
 } as const
@@ -167,8 +180,37 @@ export class CliError extends Error {
   }
 }
 
+/** One JSON line a streaming verb printed. The runner ends every stream with its own `_exit` line. */
+export type StreamLine =
+  | { type: '_exit'; rc: number | null; stderr: string; timedOut: boolean; spawnError?: string }
+  | { type: string; [k: string]: unknown }
+
 export interface Runner {
   run<T = unknown>(verb: Verb, args?: Args, opts?: RunOptions): Promise<T>
+  /** Runs a verb that prints JSON lines, yielding each as it lands. Leaving the loop early kills the child. */
+  stream(verb: Verb, args?: Args, opts?: RunOptions): AsyncGenerator<StreamLine>
+}
+
+/** Streaming children still running, so a shutdown can take them down too. */
+const live = new Set<ChildProcess>()
+
+/** SIGTERM to the child's whole process group (the CLI, the jail and the harness), then SIGKILL. */
+function killGroup(child: ChildProcess): void {
+  const sig = (s: NodeJS.Signals) => {
+    try {
+      if (child.pid) process.kill(-child.pid, s)
+    } catch {
+      // already gone
+    }
+  }
+  if (child.exitCode !== null || child.signalCode !== null) return
+  sig('SIGTERM')
+  setTimeout(() => sig('SIGKILL'), 5000).unref()
+}
+
+/** Kills every streaming child; the server calls this on shutdown. */
+export function killStreams(): void {
+  for (const c of live) killGroup(c)
 }
 
 /** Spawns the CLI with no shell, the read floor set, and a timeout. */
@@ -213,6 +255,80 @@ export function spawnRunner(): Runner {
           resolve(parsed as T)
         })
       })
+    },
+
+    async *stream(verb: Verb, args: Args = {}, opts: RunOptions = {}): AsyncGenerator<StreamLine> {
+      const timeoutMs = opts.timeoutMs ?? config.cliTimeoutMs
+      const argv = [...pre, ...VERBS[verb](args)]
+      // Its own process group, so one signal reaches everything it started.
+      const child = spawn(bin, argv, {
+        env: { ...process.env, ...config.cliEnv },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: true,
+      })
+      live.add(child)
+      const queue: StreamLine[] = []
+      let wake: (() => void) | null = null
+      const push = (l: StreamLine) => {
+        queue.push(l)
+        wake?.()
+        wake = null
+      }
+      let buf = ''
+      let err = ''
+      let ended = false
+      let timedOut = false
+      const line = (raw: string) => {
+        const t = raw.trim()
+        if (!t) return
+        try {
+          const j = JSON.parse(t) as { type?: unknown }
+          if (j && typeof j.type === 'string' && j.type !== '_exit') push(j as StreamLine)
+        } catch {
+          if (config.logLevel === 'debug') console.warn(`[cli] ${verb}: not a JSON line: ${t.slice(0, 200)}`)
+        }
+      }
+      const end = (rc: number | null, spawnError?: string) => {
+        if (ended) return
+        ended = true
+        live.delete(child)
+        clearTimeout(timer)
+        line(buf)
+        buf = ''
+        push({ type: '_exit', rc, stderr: tail(err), timedOut, ...(spawnError ? { spawnError } : {}) })
+      }
+      child.stdout.on('data', (d: Buffer) => {
+        buf += d.toString()
+        for (let i = buf.indexOf('\n'); i >= 0; i = buf.indexOf('\n')) {
+          line(buf.slice(0, i))
+          buf = buf.slice(i + 1)
+        }
+      })
+      child.stderr.on('data', (d: Buffer) => (err = tail(err + d.toString(), 4000)))
+      child.on('error', (e) => end(null, e.message))
+      child.on('close', (rc) => end(rc))
+      const timer = setTimeout(() => {
+        timedOut = true
+        killGroup(child)
+      }, timeoutMs)
+      const onAbort = () => killGroup(child)
+      if (opts.signal?.aborted) onAbort()
+      opts.signal?.addEventListener('abort', onAbort, { once: true })
+      try {
+        for (;;) {
+          const next = queue.shift()
+          if (next) {
+            yield next
+            if (next.type === '_exit') return
+            continue
+          }
+          await new Promise<void>((r) => (wake = r))
+        }
+      } finally {
+        clearTimeout(timer)
+        opts.signal?.removeEventListener('abort', onAbort)
+        if (!ended) killGroup(child)
+      }
     },
   }
 }

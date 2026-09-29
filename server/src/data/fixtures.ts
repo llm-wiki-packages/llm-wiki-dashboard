@@ -6,7 +6,7 @@
 import type {
   Attention,
   LearnedView,
-  AskAnswer,
+  AskEvent,
   AreaSummary,
   ItemKind,
   ReplayDay,
@@ -487,11 +487,38 @@ export function fixturesSource(): Source {
       return { q: params.q, backend: 'fixtures', degraded: false, count: hits.length, hits, emulated: [], degradations: [] }
     },
     learned: async (key, days): Promise<LearnedView> => ({ wiki: wiki(key), ...learnedDays(days) }),
-    ask: async (key, req): Promise<AskAnswer> => {
+    askStatus: async (key) => {
       wiki(key)
-      // A pause, so the demo shows the agent at work the way a real answer does.
-      await new Promise((r) => setTimeout(r, 1800))
-      return { q: req.q, answer: cannedAnswer(req.q), skill: req.prefix.slice(1), model: req.model, effort: req.effort, elapsedS: 41 }
+      return { available: true, agents: ['researcher'] }
+    },
+    // Streams the way a real session does: a few tool steps, then the answer word by word.
+    ask: async function* (key, req, signal): AsyncGenerator<AskEvent> {
+      wiki(key)
+      const started = Date.now()
+      // Wakes early on abort, so a stopped demo frees the wiki's slot at once, the way a killed session does.
+      const pause = (ms: number) =>
+        new Promise<void>((r) => {
+          const t = setTimeout(r, ms)
+          signal.addEventListener('abort', () => (clearTimeout(t), r()), { once: true })
+        })
+      const answer = cannedAnswer(req.q)
+      const pages = [...new Set([...answer.matchAll(/\[\[[^\]|]+\|?([^\]]*)\]\]/g)].map((m) => m[1] || m[0].slice(2, -2)))]
+      yield { type: 'start' }
+      for (const step of [
+        { name: 'Reading the wiki’s ask policy' },
+        { name: 'Searching', detail: req.q },
+        ...pages.map((p) => ({ name: 'Reading', detail: p })),
+      ]) {
+        await pause(700)
+        if (signal.aborted) return
+        yield { type: 'tool', ...step }
+      }
+      for (const word of answer.split(/(?<=\s)/)) {
+        await pause(35)
+        if (signal.aborted) return
+        yield { type: 'text', text: word }
+      }
+      yield { type: 'result', q: req.q, answer, skill: req.skill, model: req.model, effort: req.effort, elapsedS: Math.round((Date.now() - started) / 1000), outcome: 'ok' }
     },
     facets: async (key): Promise<Facets> => {
       wiki(key)

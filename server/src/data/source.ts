@@ -3,8 +3,9 @@
 // bundled demo dataset). Routes talk to this interface and nothing below it.
 
 import type {
-  AskAnswer,
+  AskEvent,
   AskRequest,
+  AskStatus,
   Briefing,
   BriefingsView,
   DataSource,
@@ -51,12 +52,23 @@ export interface Source {
   resolve(key: string, link: string): Promise<Resolved | null>
   search(key: string, params: SearchParams): Promise<SearchView>
   facets(key: string): Promise<Facets>
-  /** One question answered by an agent session running the prefix's skill. The request is already validated. */
-  ask(key: string, req: AskRequest): Promise<AskAnswer>
+  /** Whether this wiki can answer here, and its enabled agents. */
+  askStatus(key: string): Promise<AskStatus>
+  /** One question answered in a jailed harness session, as its events arrive. The request is already
+   *  validated. A refusal throws before the first event; `signal` kills the session. */
+  ask(key: string, req: AskRequest, signal: AbortSignal): AsyncGenerator<AskEvent>
 }
 
-/** The machine's CLI has no verb for this yet. */
-export class Unsupported extends Error {}
+/** The machine cannot do this: its CLI has no verb for it yet, or a refusal the page explains. */
+export class Unsupported extends Error {
+  constructor(
+    message: string,
+    /** A command that fixes it, when one does. */
+    public readonly fix?: string,
+  ) {
+    super(message)
+  }
+}
 
 export class NotFound extends Error {
   constructor(what: string) {

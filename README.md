@@ -55,14 +55,37 @@ day as yesterday. A link can start it: `/w/<key>?replay=2026-09-26&speed=3600&au
 
 ## Ask the wiki
 
-Search has an **Answer** mode: the question runs as `/ask <question>` in one
-agent session on the wiki, and the answer comes back with `[[wikilink]]`
-citations that open in the reader. The gear picks the model, the effort and
-the prompt prefix (the skill that answers), kept per browser; the server
-accepts only the models and efforts `DASHBOARD_ASK_MODELS` and
-`DASHBOARD_ASK_EFFORTS` list. The `ask` skill ships in this package
-(`skills/ask`). Live mode needs a CLI with `skills run`; until then the page
-says so, and demo mode answers from the fixtures.
+Search has an **Answer** mode. Pressing Ask runs the question in one jailed
+agent session on the wiki, and the answer streams in as the agent works: a
+status line names each step (searching, reading a page) with the time so far,
+and the text renders as it arrives, with `[[wikilink]]` citations that open in
+the reader. Leaving the page or pressing Stop ends the session. A finished
+answer is kept for the tab, so the same question shows again without running
+until **Ask again**.
+
+The server runs, with the read floor on:
+
+```
+llm-wiki-cli wiki --read-only <key> run-harness --sandbox read-search --skill <skill> [--agent <a>] model=<m> effort=<e> --stream -- <question>
+```
+
+The question is the only thing from the browser on that line, and it goes
+after `--`. The gear picks the model, the effort, the skill and, when the wiki
+has enabled agents, the agent, kept per browser. The server accepts only what
+`DASHBOARD_ASK_MODELS`, `DASHBOARD_ASK_EFFORTS` and `DASHBOARD_ASK_SKILLS`
+list (default skill `llm-wiki:ask`, which the llm-wiki plugin ships), and one
+question at a time per wiki. The stream is the CLI's own JSON lines relayed as
+server-sent events; there is no AI library.
+
+Ask is off, and the page says why before anyone types, when:
+
+- the CLI has no `run-harness` yet (update the llm-wiki plugins);
+- the dashboard runs in a jail (`npm run start:jailed`), because a jail cannot
+  start another: use `npm start` for Ask;
+- the wiki's `read-search` sandbox is not enabled on this machine: the page
+  shows the `sandboxes enable read-search` command.
+
+Demo mode streams a canned answer with the same steps.
 
 ## Presenting
 

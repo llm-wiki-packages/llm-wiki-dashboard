@@ -7,7 +7,8 @@ import { join } from 'node:path'
 import type {
   LearnedView,
   Provenance,
-  AskAnswer,
+  AskEvent,
+  AskStatus,
   AreaSummary,
   Attention,
   Facets,
@@ -32,7 +33,7 @@ import type {
 } from '@dashboard/shared/types'
 import { brand } from '@dashboard/shared/brand'
 import { config } from '../config/index.js'
-import { CliError, type Runner, type Since } from './cli.js'
+import { ASK_SANDBOX, CliError, type Runner, type Since } from './cli.js'
 import { isPage, readBody, readPages, type PageMeta } from './pages.js'
 import { NotFound, Unsupported, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
 import { replayViews } from './replay.js'
@@ -205,13 +206,26 @@ function windowStart(window?: string | null): string | undefined {
   return d.toISOString()
 }
 
+/** `whereami --json`: `jail` is `none` unless the caller already runs in one. */
+interface Whereami {
+  sandbox?: { jail?: string }
+}
+/** `sandboxes ls --json`. */
+interface SandboxesLs {
+  sandboxes: Array<{ name: string; enabled: boolean }>
+}
+/** `agents ls --enabled --json`. */
+interface AgentsLs {
+  agents: Array<{ name: string; enabled?: boolean }>
+}
+
 // ---- the source -------------------------------------------------------------
 
 export function liveSource(cli: Runner, timeline: Timeline): Source {
   const cache = new Map<string, { at: number; value: Promise<unknown> }>()
-  function memo<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  function memo<T>(key: string, fn: () => Promise<T>, ttlMs = config.cacheMs): Promise<T> {
     const hit = cache.get(key)
-    if (hit && Date.now() - hit.at < config.cacheMs) return hit.value as Promise<T>
+    if (hit && Date.now() - hit.at < ttlMs) return hit.value as Promise<T>
     const value = fn().catch((e: unknown) => {
       cache.delete(key)
       throw e
@@ -752,25 +766,106 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         quiet,
       }
     },
-    ask: async (key, req): Promise<AskAnswer> => {
-      await root(key)
-      const skill = req.prefix.slice(1)
+    // Checked before a session is spawned, with verbs every CLI has, so the
+    // page can say why Ask is off before anyone types.
+    askStatus: (key) =>
+      memo(
+        `ask:${key}`,
+        async (): Promise<AskStatus> => {
+          await root(key)
+          const [where, boxes, agents] = await Promise.all([
+            cli.run<Whereami>('wiki.whereami', { wiki: key }),
+            cli.run<SandboxesLs>('wiki.sandboxes.ls', { wiki: key }),
+            soft(cli.run<AgentsLs>('wiki.agents.ls', { wiki: key }), { agents: [] }),
+          ])
+          const names = agents.agents.filter((a) => a.enabled !== false).map((a) => a.name)
+          const jail = where.sandbox?.jail ?? 'none'
+          if (jail !== 'none')
+            return {
+              available: false,
+              reason: `Ask needs the dashboard to run outside a jail (this one runs in ${jail}), because a jail cannot start another. Start it with npm start instead`,
+              agents: names,
+            }
+          const box = boxes.sandboxes.find((b) => b.name === ASK_SANDBOX)
+          if (!box)
+            return {
+              available: false,
+              reason: `This wiki has no ${ASK_SANDBOX} sandbox yet: answers need llm-wiki plugins with run-harness and that sandbox. Update the plugins, then enable it`,
+              agents: names,
+            }
+          if (!box.enabled)
+            return {
+              available: false,
+              reason: `Answers run in the ${ASK_SANDBOX} sandbox, which is not enabled on this machine for this wiki`,
+              fix: `${config.cliName} wiki ${key} sandboxes enable ${ASK_SANDBOX}`,
+              agents: names,
+            }
+          return { available: true, agents: names }
+        },
+        config.ask.statusMs,
+      ),
+    ask: async function* (key, req, signal): AsyncGenerator<AskEvent> {
+      const st = await this.askStatus(key)
+      if (!st.available) throw new Unsupported(st.reason ?? 'Ask is off here', st.fix)
       const started = Date.now()
-      let ans: { answer?: string; session?: string; model?: string; effort?: string; elapsed_s?: number }
-      try {
-        ans = await cli.run('wiki.skills.run', { wiki: key, skill, model: req.model, effort: req.effort, text: req.q }, { timeoutMs: config.ask.timeoutMs })
-      } catch (e) {
-        if (e instanceof CliError && /no such command/i.test(`${e.message} ${e.stderr ?? ''}`)) throw new Unsupported('The command line on this machine cannot run a skill on request yet')
-        throw e
-      }
-      return {
-        q: req.q,
-        answer: ans.answer ?? '',
-        skill,
-        model: ans.model ?? req.model,
-        effort: ans.effort ?? req.effort,
-        elapsedS: ans.elapsed_s ?? Math.round((Date.now() - started) / 1000),
-        session: ans.session,
+      let begun = false
+      const lines = cli.stream(
+        'wiki.run-harness',
+        { wiki: key, skill: req.skill, agent: req.agent, model: req.model, effort: req.effort, text: req.q },
+        { timeoutMs: config.ask.timeoutMs, signal },
+      )
+      for await (const l of lines) {
+        const f = l as Record<string, unknown>
+        const str = (k: string) => (typeof f[k] === 'string' ? (f[k] as string) : undefined)
+        const num = (k: string) => (typeof f[k] === 'number' ? (f[k] as number) : undefined)
+        if (l.type === '_exit') {
+          const x = l as Extract<typeof l, { type: '_exit' }>
+          if (!begun && /no such command/i.test(x.stderr))
+            throw new Unsupported('The command line on this machine cannot run a harness on request yet (it has no run-harness)')
+          if (!begun && x.spawnError) throw new CliError(`run-harness: ${x.spawnError}`, 'spawn')
+          if (!begun) throw new CliError(x.timedOut ? 'run-harness: timed out before it started' : `run-harness: rc ${x.rc}`, 'exit', x.rc ?? undefined, x.stderr)
+          if (signal.aborted) return
+          yield {
+            type: 'error',
+            message: x.timedOut
+              ? `The answer took longer than ${Math.round(config.ask.timeoutMs / 1000)}s and was stopped`
+              : `The session ended without an answer (rc ${x.rc})`,
+            detail: x.stderr || undefined,
+          }
+          return
+        }
+        if (l.type === 'error') {
+          const message = str('message') ?? str('error') ?? str('detail') ?? 'the session failed'
+          if (!begun) throw new CliError(`run-harness: ${message}`, 'exit', undefined, str('stderr'))
+          yield { type: 'error', message, detail: str('detail') }
+          return
+        }
+        begun = true
+        if (l.type === 'start') yield { type: 'start' }
+        else if (l.type === 'text') {
+          const text = str('text')
+          if (text) yield { type: 'text', text }
+        } else if (l.type === 'tool') yield { type: 'tool', name: str('name') ?? 'Working', detail: str('detail') }
+        else if (l.type === 'result') {
+          const outcome = str('outcome')
+          const answer = str('answer') ?? ''
+          if (!answer.trim()) {
+            yield { type: 'error', message: `The session ended with no answer${outcome ? ` (${outcome})` : ''}` }
+            return
+          }
+          yield {
+            type: 'result',
+            q: req.q,
+            answer,
+            skill: req.skill,
+            model: str('model') ?? req.model,
+            effort: str('effort') ?? req.effort,
+            elapsedS: num('elapsed_s') ?? Math.round((Date.now() - started) / 1000),
+            session: str('session'),
+            outcome,
+          }
+          return
+        }
       }
     },
     facets: async (key): Promise<Facets> => {

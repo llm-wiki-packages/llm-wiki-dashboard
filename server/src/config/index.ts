@@ -56,8 +56,8 @@ const Env = z.object({
   /** The models and efforts the Ask gear offers, comma-separated; the first of each is the default. */
   DASHBOARD_ASK_MODELS: z.string().default('sonnet,opus,haiku'),
   DASHBOARD_ASK_EFFORTS: z.string().default('medium,low,high'),
-  /** The skill a question runs through, as its slash command. */
-  DASHBOARD_ASK_PREFIX: z.string().regex(/^\/[a-z0-9][a-z0-9-]{0,63}$/).default('/ask'),
+  /** The skills a question may run through, comma-separated; the first is the default. */
+  DASHBOARD_ASK_SKILLS: z.string().default('llm-wiki:ask'),
   /** How long one answer may take, in milliseconds. */
   DASHBOARD_ASK_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
   DASHBOARD_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -78,6 +78,9 @@ function readVersion(): string {
 
 /** A comma list of harness words: one word each, never a flag. */
 const list = (v: string) => v.split(',').map((x) => x.trim()).filter((x) => /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(x))
+/** A comma list of skill names, each `name` or `plugin:name`. */
+const skills = (v: string) =>
+  v.split(',').map((x) => x.trim()).filter((x) => /^[a-z0-9][a-z0-9-]{0,63}(:[a-z0-9][a-z0-9-]{0,63})?$/.test(x))
 const truthy = (v: string) => !['0', 'false', 'no', ''].includes(v.toLowerCase())
 
 export const config = {
@@ -87,6 +90,8 @@ export const config = {
   source: env.DASHBOARD_SOURCE as DataSource,
   mode: env.DASHBOARD_MODE as Mode,
   cli: env.DASHBOARD_CLI.split(' ').filter(Boolean),
+  /** The machine CLI as a person types it, for the commands the page shows. */
+  cliName: env.DASHBOARD_CLI.includes(' ') ? env.DASHBOARD_CLI : (env.DASHBOARD_CLI.split('/').pop() ?? ''),
   cliTimeoutMs: env.DASHBOARD_CLI_TIMEOUT_MS,
   cacheMs: env.DASHBOARD_CACHE_MS,
   token: env.DASHBOARD_TOKEN ?? randomBytes(24).toString('base64url'),
@@ -101,7 +106,9 @@ export const config = {
   ask: {
     models: list(env.DASHBOARD_ASK_MODELS),
     efforts: list(env.DASHBOARD_ASK_EFFORTS),
-    prefix: env.DASHBOARD_ASK_PREFIX,
+    skills: skills(env.DASHBOARD_ASK_SKILLS),
+    /** How long whether a wiki can answer is reused. */
+    statusMs: 30_000,
     timeoutMs: env.DASHBOARD_ASK_TIMEOUT_MS,
   },
   /** Every CLI child runs under the read floor, whatever mode the server is in.

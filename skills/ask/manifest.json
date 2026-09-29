@@ -1,9 +1,0 @@
-{
-  "v": 1,
-  "name": "ask",
-  "version": "0.1.0",
-  "kind": "tool",
-  "keywords": ["ask", "question", "answer", "research", "explain"],
-  "usage": "/ask <question>",
-  "requires": { "ops": ">=0.3.7" }
-}

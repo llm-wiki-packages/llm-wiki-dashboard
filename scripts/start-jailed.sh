@@ -7,6 +7,9 @@
 #
 # The wiki list comes from the machine registry at start, so a wiki
 # registered later needs a restart. Requires: nono, node >= 24, llm-wiki-cli.
+#
+# Ask the wiki is off in here: it starts a jailed session, and a jail cannot
+# start another. The page says so; run `npm start` for Ask.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

@@ -2,6 +2,8 @@
 // child runs under the read floor. The runner tests use test/fake-cli.mjs in
 // place of llm-wiki-cli, wired through the config's DASHBOARD_CLI.
 
+import { readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -63,15 +65,88 @@ describe('timeline argv', () => {
   })
 })
 
-describe('skills run argv', () => {
-  it('names the skill, model and effort as tokens and puts the question after --', () => {
-    expect(cli.VERBS['wiki.skills.run']({ wiki: 'kb', skill: 'ask', model: 'sonnet', effort: 'medium', text: '-why?' })).toEqual([
-      'wiki', '--read-only', 'kb', 'skills', 'run', 'ask', 'model=sonnet', 'effort=medium', '--json', '--', '-why?',
+describe('run-harness argv', () => {
+  const base = { wiki: 'kb', skill: 'llm-wiki:ask', model: 'sonnet', effort: 'medium' }
+  it('runs in read-search with --skill and --stream, and puts the question after --', () => {
+    expect(cli.VERBS['wiki.run-harness']({ ...base, text: '-why?' })).toEqual([
+      'wiki', '--read-only', 'kb', 'run-harness', '--sandbox', 'read-search', '--skill', 'llm-wiki:ask',
+      'model=sonnet', 'effort=medium', '--stream', '--', '-why?',
     ])
   })
-  it('refuses a flag-shaped model and a skill that is not a unit name', () => {
-    expect(() => cli.VERBS['wiki.skills.run']({ wiki: 'kb', skill: 'ask', model: '--x', effort: 'low', text: 'q' })).toThrow(cli.CliError)
-    expect(() => cli.VERBS['wiki.skills.run']({ wiki: 'kb', skill: '../ask', model: 'sonnet', effort: 'low', text: 'q' })).toThrow(cli.CliError)
+  it('names an agent only when given one, and never adds --json', () => {
+    const argv = cli.VERBS['wiki.run-harness']({ ...base, agent: 'researcher', text: 'q' })
+    expect(argv.slice(8, 10)).toEqual(['--agent', 'researcher'])
+    expect(argv).not.toContain('--json')
+  })
+  it('refuses a flag-shaped model or agent, and a skill that is not a unit name', () => {
+    expect(() => cli.VERBS['wiki.run-harness']({ ...base, model: '--x', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.run-harness']({ ...base, agent: '--dangerously-skip-permissions', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.run-harness']({ ...base, skill: '../ask', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.run-harness']({ ...base, skill: 'a:b:c', text: 'q' })).toThrow(cli.CliError)
+  })
+})
+
+describe('stream runner', () => {
+  const ask = { wiki: 'kb', skill: 'llm-wiki:ask', model: 'sonnet', effort: 'medium', text: 'renewals?' }
+  const collect = async (gen: AsyncGenerator<import('../src/data/cli.js').StreamLine>) => {
+    const out = []
+    for await (const l of gen) out.push(l)
+    return out
+  }
+
+  it('yields each JSON line in order, skips the rest, runs under the read floor, and ends with _exit', async () => {
+    const lines = await collect(cli.spawnRunner().stream('wiki.run-harness', ask))
+    expect(lines.map((l) => l.type)).toEqual(['start', 'tool', 'text', 'text', 'result', '_exit'])
+    const result = lines[4] as unknown as { argv: string[]; permissions: string }
+    expect(result.permissions).toBe('read')
+    expect(result.argv.slice(0, 4)).toEqual(['wiki', '--read-only', 'kb', 'run-harness'])
+    expect(lines[5]).toMatchObject({ rc: 0, timedOut: false })
+  })
+
+  it('kills the child when the signal aborts', async () => {
+    const pidfile = resolve(tmpdir(), `dash-fake-${process.pid}-${Date.now()}.pid`)
+    process.env.FAKE_CLI_STREAM = 'hang'
+    process.env.FAKE_CLI_PIDFILE = pidfile
+    try {
+      const stop = new AbortController()
+      const seen: string[] = []
+      for await (const l of cli.spawnRunner().stream('wiki.run-harness', ask, { signal: stop.signal })) {
+        seen.push(l.type)
+        if (seen.length === 3) stop.abort()
+      }
+      expect(seen.at(-1)).toBe('_exit')
+      const pid = Number(readFileSync(pidfile, 'utf8'))
+      expect(() => process.kill(pid, 0)).toThrow()
+    } finally {
+      delete process.env.FAKE_CLI_STREAM
+      delete process.env.FAKE_CLI_PIDFILE
+      rmSync(pidfile, { force: true })
+    }
+  })
+
+  it('kills the child when the reader stops early', async () => {
+    const pidfile = resolve(tmpdir(), `dash-fake-${process.pid}-${Date.now()}-b.pid`)
+    process.env.FAKE_CLI_STREAM = 'hang'
+    process.env.FAKE_CLI_PIDFILE = pidfile
+    try {
+      for await (const l of cli.spawnRunner().stream('wiki.run-harness', ask)) if (l.type === 'tool') break
+      const pid = Number(readFileSync(pidfile, 'utf8'))
+      await expect.poll(() => { try { process.kill(pid, 0); return true } catch { return false } }).toBe(false)
+    } finally {
+      delete process.env.FAKE_CLI_STREAM
+      delete process.env.FAKE_CLI_PIDFILE
+      rmSync(pidfile, { force: true })
+    }
+  })
+
+  it('reports a timeout on the _exit line', async () => {
+    process.env.FAKE_CLI_STREAM = 'hang'
+    try {
+      const lines = await collect(cli.spawnRunner().stream('wiki.run-harness', ask, { timeoutMs: 150 }))
+      expect(lines.at(-1)).toMatchObject({ type: '_exit', timedOut: true })
+    } finally {
+      delete process.env.FAKE_CLI_STREAM
+    }
   })
 })
 

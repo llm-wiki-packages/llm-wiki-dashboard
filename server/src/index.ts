@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { brand } from '@dashboard/shared/brand'
 import { createApp } from './app.js'
 import { config, url } from './config/index.js'
-import { spawnRunner } from './data/cli.js'
+import { killStreams, spawnRunner } from './data/cli.js'
 import { fixturesSource } from './data/fixtures.js'
 import { liveSource } from './data/live.js'
 import { Timeline, openStore } from './data/timeline.js'
@@ -34,6 +34,7 @@ function openBrowser(link: string): void {
 
 function shutdown(): void {
   hub.stop()
+  killStreams()
   server.close(() => process.exit(0))
   setTimeout(() => process.exit(0), 1000).unref()
 }

@@ -1,14 +1,17 @@
 // Search: the engine's question box with every filter it takes, or an
-// answer: an agent runs the configured skill (default `/ask`) over the wiki
-// and writes a few paragraphs with citations. Results and citations open in
-// the reader. The URL carries the whole query, so either is shareable.
+// answer: a jailed agent session runs the configured skill (default
+// `llm-wiki:ask`) over the wiki, and its answer streams in with citations.
+// Results and citations open in the reader. The URL carries the whole query,
+// so either is shareable; an answer runs only when Ask is pressed.
 
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { Search as SearchIcon, Settings2, Sparkles } from 'lucide-react'
-import { SEARCH_FILTER_KINDS, type SearchFilterKind } from '@dashboard/shared/types'
-import { ApiError, useAsk, useConfig, useFacets, useSearch } from '@/lib/api'
-import { useAskSettings, validPrefix, type AskSettings } from '@/lib/askSettings'
+import { SEARCH_FILTER_KINDS, type AskRequest, type AskStatus, type SearchFilterKind } from '@dashboard/shared/types'
+import { ApiError, useAskStatus, useConfig, useFacets, useSearch } from '@/lib/api'
+import { useAskSettings, type AskSettings } from '@/lib/askSettings'
+import { useAskStream } from '@/lib/askStream'
+import { settledMarkdown } from '@/lib/sse'
 import { Brief } from '@/components/Brief'
 import {
   Button,
@@ -72,7 +75,16 @@ function SearchPage() {
   const [settings, setSettings] = useAskSettings(cfg.data?.ask)
   const [gear, setGear] = useState(false)
   const answering = search.mode === 'answer'
+  const askStatus = useAskStatus(key, answering)
+  const asker = useAskStream(key)
   const [draft, setDraft] = useState(search.q ?? '')
+  /** The request a question would run as: an agent is sent only when this wiki has it enabled. */
+  const requestFor = (q: string): AskRequest | undefined => {
+    if (!settings) return undefined
+    const { agent, ...rest } = settings
+    return { q, ...rest, ...(agent && askStatus.data?.agents.includes(agent) ? { agent } : {}) }
+  }
+  const canAsk = askStatus.data?.available === true
   const set = (patch: Partial<Search>) => void navigate({ search: (s) => ({ ...s, ...patch }) })
   const filters: Partial<Record<SearchFilterKind, string>> = {}
   for (const kind of SEARCH_FILTER_KINDS) if (search[kind]) filters[kind] = search[kind]
@@ -133,7 +145,10 @@ function SearchPage() {
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          set({ q: draft.trim() || undefined })
+          const q = draft.trim()
+          set({ q: q || undefined })
+          const req = q && answering && canAsk ? requestFor(q) : undefined
+          if (req) void asker.ask(req)
         }}
       >
         <label className="flex h-12 grow items-center gap-3 rounded-pill border border-line-2 bg-card px-4">
@@ -156,7 +171,8 @@ function SearchPage() {
         </label>
         <button
           type="submit"
-          className="h-12 rounded-pill bg-ink px-6 text-sm font-semibold text-paper"
+          disabled={answering && !canAsk}
+          className="h-12 rounded-pill bg-ink px-6 text-sm font-semibold text-paper disabled:opacity-40"
         >
           {answering ? 'Ask' : 'Search'}
         </button>
@@ -184,12 +200,21 @@ function SearchPage() {
           settings={settings}
           models={cfg.data.ask.models}
           efforts={cfg.data.ask.efforts}
+          skills={cfg.data.ask.skills}
+          agents={askStatus.data?.agents ?? []}
           onChange={setSettings}
         />
       )}
 
       {answering ? (
-        <AnswerPanel wikiKey={key} q={search.q} settings={settings} />
+        <AnswerPanel
+          wikiKey={key}
+          req={search.q ? requestFor(search.q) : undefined}
+          status={askStatus.data}
+          statusError={askStatus.error}
+          asker={asker}
+          cli={cfg.data?.cli ?? 'llm-wiki-cli'}
+        />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
           <Card className="flex flex-col gap-4 self-start">
@@ -344,14 +369,18 @@ function AskGear({
   settings,
   models,
   efforts,
+  skills,
+  agents,
   onChange,
 }: {
   settings: AskSettings
   models: string[]
   efforts: string[]
+  skills: string[]
+  agents: string[]
   onChange: (p: Partial<AskSettings>) => void
 }) {
-  const [prefix, setPrefix] = useState(settings.prefix)
+  const agent = settings.agent && agents.includes(settings.agent) ? settings.agent : undefined
   return (
     <Card className="flex flex-wrap items-end gap-5">
       <Field label="Model">
@@ -372,23 +401,40 @@ function AskGear({
           ))}
         </Segmented>
       </Field>
-      <Field label="Prompt prefix (the skill that answers)">
-        <input
-          value={prefix}
-          onChange={(e) => {
-            setPrefix(e.target.value)
-            if (validPrefix(e.target.value)) onChange({ prefix: e.target.value })
-          }}
-          aria-invalid={!validPrefix(prefix)}
-          className={cn(
-            'h-9 w-44 rounded-pill border bg-card px-3 font-mono text-sm outline-none',
-            validPrefix(prefix) ? 'border-line-2 focus:border-ink' : 'border-bad',
-          )}
-        />
-      </Field>
+      {skills.length > 1 && (
+        <Field label="Skill">
+          <Segmented>
+            {skills.map((k) => (
+              <Button key={k} active={settings.skill === k} onClick={() => onChange({ skill: k })}>
+                <span className="font-mono">{k}</span>
+              </Button>
+            ))}
+          </Segmented>
+        </Field>
+      )}
+      {agents.length > 0 && (
+        <Field label="Agent">
+          <Segmented>
+            <Button active={!agent} onClick={() => onChange({ agent: undefined })}>
+              default
+            </Button>
+            {agents.map((a) => (
+              <Button key={a} active={agent === a} onClick={() => onChange({ agent: a })}>
+                {a}
+              </Button>
+            ))}
+          </Segmented>
+        </Field>
+      )}
       <p className="basis-full text-xs text-ink-3">
-        Your question runs as <span className="font-mono">{settings.prefix} &lt;question&gt;</span>{' '}
-        in one agent session on this wiki, under the read-only floor. Kept in this browser.
+        Your question runs through <span className="font-mono">{settings.skill}</span>
+        {agent ? (
+          <>
+            {' '}as the <span className="font-mono">{agent}</span> agent
+          </>
+        ) : null}{' '}
+        in one jailed agent session that can read the wiki and its search, and write nothing. Kept
+        in this browser.
       </p>
     </Card>
   )
@@ -396,69 +442,160 @@ function AskGear({
 
 function AnswerPanel({
   wikiKey,
-  q,
-  settings,
+  req,
+  status,
+  statusError,
+  asker,
+  cli,
 }: {
   wikiKey: string
-  q: string | undefined
-  settings: AskSettings | undefined
+  req: AskRequest | undefined
+  status: AskStatus | undefined
+  statusError: unknown
+  asker: ReturnType<typeof useAskStream>
+  cli: string
 }) {
-  const ask = useAsk(wikiKey, q && settings ? { q, ...settings } : undefined)
+  const { run } = asker
+  const streaming = run.state === 'streaming'
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
-    if (!ask.isFetching) return
-    const started = Date.now()
-    setElapsed(0)
-    const id = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000)
+    if (!streaming || !run.startedAt) return
+    const started = run.startedAt
+    const tick = () => setElapsed(Math.round((Date.now() - started) / 1000))
+    tick()
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [ask.isFetching])
+  }, [streaming, run.startedAt])
 
-  if (!q)
+  if (statusError) return <ErrorNote error={statusError} />
+  if (status && !status.available) return <AskOff reason={status.reason} fix={status.fix} />
+  if (!req)
     return (
       <Empty
         title="Ask the wiki anything"
-        body="The answer cites the pages it came from; each citation opens in the reader."
+        body="The answer streams in as the agent reads, and cites the pages it came from; each citation opens in the reader."
       />
     )
-  if (ask.isError) {
-    const e = ask.error
-    if (e instanceof ApiError && e.kind === 'unsupported')
-      return (
-        <Empty
-          title="This machine cannot answer yet"
-          body={`${e.message}. Results still work: switch to Results above.`}
-        />
-      )
-    return <ErrorNote error={e} />
-  }
-  if (ask.isPending || !ask.data)
+
+  const mine = run.req?.q === req.q ? run : undefined
+  const kept = !mine ? asker.cached(req) : undefined
+  const ran = mine?.req ?? req
+  const meta = (s?: number) => (
+    <span className="font-mono text-xs text-ink-3">
+      {ran.skill}
+      {ran.agent ? ` · ${ran.agent}` : ''} · {ran.model} · {ran.effort}
+      {s !== undefined ? ` · ${s}s` : ''}
+    </span>
+  )
+  const again = (label: string) => (
+    <button
+      type="button"
+      className="text-xs font-semibold text-accent"
+      onClick={() => void asker.ask(req, true)}
+    >
+      {label}
+    </button>
+  )
+
+  if (mine?.state === 'error') {
+    const e = mine.error
     return (
-      <Card className="flex items-center gap-4">
-        <span className="size-2.5 rounded-full bg-live live-pulse" />
-        <div className="flex flex-col">
-          <span className="text-[15px]">
-            Reading your wiki… <span className="tabular-nums text-ink-2">{elapsed}s</span>
+      <div className="flex flex-col gap-3">
+        {e instanceof ApiError && e.kind === 'unsupported' ? (
+          <AskOff reason={e.message} fix={e.fix} cli={cli} />
+        ) : (
+          <ErrorNote error={e} />
+        )}
+        {mine.text && (
+          <Card className="flex flex-col gap-3 opacity-70">
+            <SectionLabel right={again('Ask again')}>Partial answer</SectionLabel>
+            <Brief wikiKey={wikiKey} markdown={settledMarkdown(mine.text)} />
+          </Card>
+        )}
+      </div>
+    )
+  }
+
+  if (streaming && mine)
+    return (
+      <Card className="flex flex-col gap-3">
+        <div className="flex items-center gap-3" aria-live="polite">
+          <span className="size-2.5 shrink-0 rounded-full bg-live live-pulse" />
+          <span className="min-w-0 grow truncate text-[15px]">
+            {mine.tool ? (
+              <>
+                {mine.tool.name}
+                {mine.tool.detail && <span className="text-ink-2"> · {mine.tool.detail}</span>}
+              </>
+            ) : (
+              'Starting a session…'
+            )}
           </span>
-          <span className="text-xs text-ink-3 font-mono">
-            {settings?.prefix} · {settings?.model} · {settings?.effort} effort
-          </span>
+          <span className="shrink-0 tabular-nums text-sm text-ink-2">{elapsed}s</span>
+          <button type="button" className="shrink-0 text-xs font-semibold text-accent" onClick={asker.cancel}>
+            Stop
+          </button>
         </div>
+        {meta()}
+        {mine.text && <Brief wikiKey={wikiKey} markdown={settledMarkdown(mine.text)} />}
       </Card>
     )
-  const a = ask.data
+
+  const answer = mine?.state === 'done' ? mine.answer : kept
+  if (answer)
+    return (
+      <Card className="flex flex-col gap-3">
+        <SectionLabel
+          right={
+            <span className="flex items-center gap-3">
+              {meta(answer.elapsedS)}
+              {again('Ask again')}
+            </span>
+          }
+        >
+          Answer
+        </SectionLabel>
+        <Brief wikiKey={wikiKey} markdown={answer.answer} />
+      </Card>
+    )
+
   return (
-    <Card className="flex flex-col gap-3">
-      <SectionLabel
-        right={
-          <span className="text-xs text-ink-3 font-mono">
-            /{a.skill} · {a.model} · {a.effort} · {a.elapsedS}s
-          </span>
-        }
+    <Card className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-[15px]">
+          {mine?.state === 'idle' ? 'Stopped. ' : ''}Ready to ask: <strong className="font-semibold">{req.q}</strong>
+        </span>
+        {meta()}
+      </div>
+      <button
+        type="button"
+        disabled={!status?.available}
+        onClick={() => void asker.ask(req, true)}
+        className="h-10 rounded-pill bg-ink px-5 text-sm font-semibold text-paper disabled:opacity-40"
       >
-        Answer
-      </SectionLabel>
-      <Brief wikiKey={wikiKey} markdown={a.answer} />
+        Ask
+      </button>
     </Card>
+  )
+}
+
+function AskOff({ reason, fix, cli }: { reason?: string; fix?: string; cli?: string }) {
+  return (
+    <div className="flex flex-col gap-2 rounded-card bg-warn-bg px-4 py-3 text-sm">
+      <span className="font-semibold">This machine cannot answer here yet</span>
+      <span>{reason ?? 'Ask is off.'}. Results still work: switch to Results above.</span>
+      {fix && (
+        <span className="text-warn-ink">
+          This turns it on: <code className="font-mono">{fix}</code>
+        </span>
+      )}
+      {!fix && cli && reason && /run-harness/.test(reason) && (
+        <span className="text-warn-ink">
+          Update the llm-wiki plugins, then check with{' '}
+          <code className="font-mono">{cli} machine version</code>
+        </span>
+      )}
+    </div>
   )
 }
 

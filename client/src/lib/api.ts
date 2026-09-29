@@ -5,8 +5,7 @@
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query'
 import type {
   AppConfig,
-  AskAnswer,
-  AskRequest,
+  AskStatus,
   Briefing,
   BriefingsView,
   Facets,
@@ -28,22 +27,27 @@ export class ApiError extends Error {
     message: string,
     public readonly detail?: string,
     public readonly kind?: string,
+    /** A command that fixes it, when the server names one. */
+    public readonly fix?: string,
   ) {
     super(message)
   }
 }
 
+/** A non-2xx answer as an ApiError, carrying the server's plain words. */
+export async function apiError(res: Response): Promise<ApiError> {
+  let body: { error?: string; stderr?: string; kind?: string; fix?: string } = {}
+  try {
+    body = (await res.json()) as typeof body
+  } catch {
+    // not JSON
+  }
+  return new ApiError(res.status, body.error ?? res.statusText, body.stderr, body.kind, body.fix)
+}
+
 async function get<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, { credentials: 'same-origin', ...init })
-  if (!res.ok) {
-    let body: { error?: string; stderr?: string; kind?: string } = {}
-    try {
-      body = (await res.json()) as typeof body
-    } catch {
-      // not JSON
-    }
-    throw new ApiError(res.status, body.error ?? res.statusText, body.stderr, body.kind)
-  }
+  if (!res.ok) throw await apiError(res)
   return (await res.json()) as T
 }
 
@@ -107,18 +111,9 @@ export const q = {
   },
   learned: (key: string, days: 7 | 30) =>
     queryOptions({ queryKey: ['wiki', key, 'learned', days], queryFn: () => get<LearnedView>(`/wikis/${key}/learned?days=${days}`), staleTime: 60_000 }),
-  /** One agent run per distinct question and settings; the answer is kept for the session, never refetched. */
-  ask: (key: string, req: AskRequest) =>
-    queryOptions({
-      queryKey: ['wiki', key, 'ask', req.q, req.model, req.effort, req.prefix],
-      queryFn: () =>
-        get<AskAnswer>(`/wikis/${key}/ask`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req) }),
-      staleTime: Infinity,
-      gcTime: 3_600_000,
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-    }),
+  /** Whether this wiki can answer here; the server caches it about 30s. */
+  askStatus: (key: string) =>
+    queryOptions({ queryKey: ['wiki', key, 'ask-status'], queryFn: () => get<AskStatus>(`/wikis/${key}/ask`), staleTime: 30_000 }),
   briefing: (key: string, id: string) =>
     queryOptions({
       queryKey: ['wiki', key, 'briefings', id],
@@ -141,6 +136,5 @@ export const useResolve = (key: string, link: string | undefined) =>
 export const useFacets = (key: string) => useQuery(q.facets(key))
 export const useSearch = (key: string, text: string | undefined, opts: Parameters<typeof q.search>[2]) =>
   useQuery({ ...q.search(key, text ?? '', opts), enabled: Boolean(text) })
-export const useAsk = (key: string, req: AskRequest | undefined) =>
-  useQuery({ ...q.ask(key, req ?? { q: '', model: '', effort: '', prefix: '' }), enabled: Boolean(req?.q) })
+export const useAskStatus = (key: string, enabled: boolean) => useQuery({ ...q.askStatus(key), enabled })
 export const useLearned = (key: string, days: 7 | 30) => useQuery({ ...q.learned(key, days), placeholderData: keepPreviousData })

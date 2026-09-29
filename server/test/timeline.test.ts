@@ -27,6 +27,9 @@ function stub(answers: Record<string, (a: Args) => unknown>) {
       if (!fn) throw new Error(`unexpected verb ${verb}`)
       return fn(args) as T
     },
+    stream() {
+      throw new Error('the timeline never streams')
+    },
   }
   return { runner, calls }
 }
