@@ -163,7 +163,7 @@ describe('ask', () => {
 
   it('refuses a model, effort or skill outside the closed lists, an unknown agent, and an empty question', async () => {
     expect((await post({ q: 'x', model: '--dangerously-skip-permissions' })).status).toBe(400)
-    expect((await post({ q: 'x', effort: 'max' })).status).toBe(400)
+    expect((await post({ q: 'x', effort: 'ultra' })).status).toBe(400)
     expect((await post({ q: 'x', skill: '/ask; rm -rf ~' })).status).toBe(400)
     expect((await post({ q: 'x', agent: 'nobody' })).status).toBe(400)
     expect((await post({ q: '   ' })).status).toBe(400)

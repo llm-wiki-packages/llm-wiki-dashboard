@@ -54,8 +54,8 @@ const Env = z.object({
   /** How many days of history replay offers. */
   DASHBOARD_REPLAY_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   /** The models and efforts the Ask gear offers besides "default", which passes neither and leaves the harness's own. */
-  DASHBOARD_ASK_MODELS: z.string().default('sonnet,opus,haiku'),
-  DASHBOARD_ASK_EFFORTS: z.string().default('medium,low,high'),
+  DASHBOARD_ASK_MODELS: z.string().default('fable,opus,sonnet,haiku'),
+  DASHBOARD_ASK_EFFORTS: z.string().default('low,medium,high,xhigh,max'),
   /** The skills a question may run through, comma-separated; the first is the default. */
   DASHBOARD_ASK_SKILLS: z.string().default('llm-wiki:search'),
   /** How long one answer may take, in milliseconds. */
