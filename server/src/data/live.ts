@@ -875,7 +875,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
             skill: req.skill,
             model: str('model') ?? req.model,
             effort: str('effort') ?? req.effort,
-            elapsedS: num('elapsed_s') ?? Math.round((Date.now() - started) / 1000),
+            elapsedS: Math.round(num('elapsed_s') ?? (Date.now() - started) / 1000),
             session: str('session'),
             outcome,
           }

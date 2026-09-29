@@ -63,7 +63,7 @@ describe('ask stream', () => {
     const evs = events(await res.text())
     expect(evs.map((e) => e.event)).toEqual(['start', 'tool', 'text', 'text', 'result'])
     expect(evs.filter((e) => e.event === 'text').map((e) => e.data.text).join('')).toBe('The answer cites [[Some page]].')
-    expect(evs[4]!.data).toMatchObject({ answer: 'The answer cites [[Some page]].', skill: 'llm-wiki:search', outcome: 'ok', session: 'fake-session' })
+    expect(evs[4]!.data).toMatchObject({ answer: 'The answer cites [[Some page]].', skill: 'llm-wiki:search', outcome: 'ok', session: 'fake-session', elapsedS: 1 })
   })
 
   it('kills the session when the browser goes away', async () => {

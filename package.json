@@ -1,6 +1,6 @@
 {
   "name": "llm-wiki-dashboard",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "private": true,
   "type": "module",
   "description": "Reference dashboard for llm-wiki: what's new, what's running, what's scheduled, and the briefings. Fork it and make it yours.",
