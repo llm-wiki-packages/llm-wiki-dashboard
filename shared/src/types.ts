@@ -29,12 +29,11 @@ export interface AppConfig {
 
 /** What the Ask gear may choose from; the server refuses anything outside these lists. */
 export interface AskOptions {
+  /** Offered besides "default", which passes no model and leaves the harness's own. */
   models: string[]
   efforts: string[]
-  /** Skill names the CLI runs with `--skill`, like `llm-wiki:ask`. */
+  /** Skill names the CLI runs with `skill=`, like `llm-wiki:search`. */
   skills: string[]
-  defaultModel: string
-  defaultEffort: string
   defaultSkill: string
 }
 
@@ -48,12 +47,13 @@ export interface AskStatus {
   agents: string[]
 }
 
-/** One question for the wiki, run through `run-harness --skill <skill>` in a jailed session. */
+/** One question for the wiki, run through `harness run skill=<skill>` in a jailed session.
+ *  Model and effort are sent only when chosen. */
 export interface AskRequest {
   q: string
-  model: string
-  effort: string
   skill: string
+  model?: string
+  effort?: string
   agent?: string
 }
 
@@ -63,8 +63,9 @@ export interface AskAnswer {
   /** Markdown with [[wikilink]] citations. */
   answer: string
   skill: string
-  model: string
-  effort: string
+  /** What the harness actually used, from its result. */
+  model?: string
+  effort?: string
   elapsedS: number
   session?: string
   outcome?: string

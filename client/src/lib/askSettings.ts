@@ -7,8 +7,9 @@ import { useCallback, useState } from 'react'
 import type { AskOptions } from '@dashboard/shared/types'
 
 export interface AskSettings {
-  model: string
-  effort: string
+  /** Unset means "default": nothing is passed and the harness uses the person's own. */
+  model?: string
+  effort?: string
   skill: string
   /** An agent name; only sent when the wiki has it enabled. */
   agent?: string
@@ -26,8 +27,8 @@ function read(): Partial<AskSettings> {
 
 export function settle(raw: Partial<AskSettings>, opts: AskOptions): AskSettings {
   return {
-    model: raw.model && opts.models.includes(raw.model) ? raw.model : opts.defaultModel,
-    effort: raw.effort && opts.efforts.includes(raw.effort) ? raw.effort : opts.defaultEffort,
+    model: raw.model && opts.models.includes(raw.model) ? raw.model : undefined,
+    effort: raw.effort && opts.efforts.includes(raw.effort) ? raw.effort : undefined,
     skill: raw.skill && opts.skills.includes(raw.skill) ? raw.skill : opts.defaultSkill,
     agent: typeof raw.agent === 'string' && raw.agent ? raw.agent : undefined,
   }

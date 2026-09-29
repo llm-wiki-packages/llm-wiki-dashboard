@@ -8,8 +8,8 @@ import { brand } from '@dashboard/shared/brand'
 import { SEARCH_FILTER_KINDS } from '@dashboard/shared/types'
 import type { AppConfig, AskEvent, AskRequest, HealthReport, SearchParams } from '@dashboard/shared/types'
 import { config } from '../config/index.js'
-import { CliError, type Since } from '../data/cli.js'
-import { NotFound, Unsupported, type Source } from '../data/source.js'
+import { CliError, question, type Since } from '../data/cli.js'
+import { Busy, NotFound, Unsupported, type Source } from '../data/source.js'
 
 const SINCE = /^\d{1,3}[hd]$/
 const ID = /^[A-Za-z0-9_-]{1,512}$/
@@ -32,6 +32,7 @@ export function apiRoutes(source: Source): Hono {
 
   api.onError((err, c) => {
     if (err instanceof NotFound) return c.json({ error: err.message }, 404)
+    if (err instanceof Busy) return c.json({ error: err.message, kind: 'busy' }, 429)
     if (err instanceof Unsupported) return c.json({ error: err.message, kind: 'unsupported', fix: err.fix }, 501)
     if (err instanceof CliError) {
       const status = err.kind === 'args' ? 400 : err.kind === 'spawn' ? 503 : 502
@@ -81,8 +82,6 @@ export function apiRoutes(source: Source): Hono {
       ask: {
         models: config.ask.models,
         efforts: config.ask.efforts,
-        defaultModel: config.ask.models[0] ?? '',
-        defaultEffort: config.ask.efforts[0] ?? '',
         skills: config.ask.skills,
         defaultSkill: config.ask.skills[0] ?? '',
       },
@@ -183,15 +182,15 @@ export function apiRoutes(source: Source): Hono {
     } catch {
       return c.json({ error: 'a JSON body is required' }, 400)
     }
-    const q = typeof raw.q === 'string' ? raw.q.trim() : ''
-    if (!q || q.length > 2000) return c.json({ error: 'q must be 1–2000 characters' }, 400)
-    const model = raw.model ?? config.ask.models[0]
-    const effort = raw.effort ?? config.ask.efforts[0]
+    // Checked here too, so a dash-led or oversized question gets plain words instead of a CLI refusal.
+    const q = question(typeof raw.q === 'string' ? raw.q : '')
+    const model = raw.model || undefined
+    const effort = raw.effort || undefined
     const skill = raw.skill ?? config.ask.skills[0]
-    if (!model || !config.ask.models.includes(model)) return c.json({ error: `model must be one of ${config.ask.models.join(', ')}` }, 400)
-    if (!effort || !config.ask.efforts.includes(effort)) return c.json({ error: `effort must be one of ${config.ask.efforts.join(', ')}` }, 400)
+    if (model !== undefined && !config.ask.models.includes(model)) return c.json({ error: `model must be default or one of ${config.ask.models.join(', ')}` }, 400)
+    if (effort !== undefined && !config.ask.efforts.includes(effort)) return c.json({ error: `effort must be default or one of ${config.ask.efforts.join(', ')}` }, 400)
     if (!skill || !config.ask.skills.includes(skill)) return c.json({ error: `skill must be one of ${config.ask.skills.join(', ')}` }, 400)
-    const req: AskRequest = { q, model, effort, skill }
+    const req: AskRequest = { q, skill, ...(model ? { model } : {}), ...(effort ? { effort } : {}) }
     if (raw.agent !== undefined && raw.agent !== '') {
       const { agents } = await source.askStatus(key)
       if (typeof raw.agent !== 'string' || !agents.includes(raw.agent))
@@ -199,7 +198,7 @@ export function apiRoutes(source: Source): Hono {
       req.agent = raw.agent
     }
     // Each answer is a paid agent session: one at a time per wiki.
-    if (asking.has(key)) return c.json({ error: 'this wiki is already answering a question; wait for it or stop it' }, 429)
+    if (asking.has(key)) throw new Busy('This wiki is already answering a question; wait for it or stop it')
     asking.add(key)
     const stop = new AbortController()
     const abort = () => stop.abort()

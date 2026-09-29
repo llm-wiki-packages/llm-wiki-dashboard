@@ -53,11 +53,11 @@ const Env = z.object({
     .default(resolve(process.env.XDG_STATE_HOME || resolve(homedir(), '.local/state'), 'llm-wiki-dashboard')),
   /** How many days of history replay offers. */
   DASHBOARD_REPLAY_DAYS: z.coerce.number().int().min(1).max(365).default(30),
-  /** The models and efforts the Ask gear offers, comma-separated; the first of each is the default. */
+  /** The models and efforts the Ask gear offers besides "default", which passes neither and leaves the harness's own. */
   DASHBOARD_ASK_MODELS: z.string().default('sonnet,opus,haiku'),
   DASHBOARD_ASK_EFFORTS: z.string().default('medium,low,high'),
   /** The skills a question may run through, comma-separated; the first is the default. */
-  DASHBOARD_ASK_SKILLS: z.string().default('llm-wiki:ask'),
+  DASHBOARD_ASK_SKILLS: z.string().default('llm-wiki:search'),
   /** How long one answer may take, in milliseconds. */
   DASHBOARD_ASK_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
   DASHBOARD_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -111,10 +111,9 @@ export const config = {
     statusMs: 30_000,
     timeoutMs: env.DASHBOARD_ASK_TIMEOUT_MS,
   },
-  /** Every CLI child runs under the read floor, whatever mode the server is in.
-   *  Write mode, when it exists, lifts this per route, never globally. */
+  /** What every CLI child gets. The read floor is added per verb in data/cli.ts,
+   *  which names the one verb that runs without it. */
   cliEnv: {
-    LLM_WIKI_PERMISSIONS: 'read',
     NO_COLOR: '1',
     FORCE_COLOR: '0',
   } as Record<string, string>,

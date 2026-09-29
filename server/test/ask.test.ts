@@ -16,7 +16,7 @@ process.env.DASHBOARD_TOKEN_REQUIRED = '0'
 process.env.DASHBOARD_OPEN = '0'
 process.env.DASHBOARD_STATE_DIR = ':memory:'
 
-const FAKE = ['FAKE_CLI_FAIL', 'FAKE_CLI_JAIL', 'FAKE_CLI_SANDBOXES', 'FAKE_CLI_TEMPLATES', 'FAKE_CLI_AGENTS', 'FAKE_CLI_STREAM', 'FAKE_CLI_PIDFILE']
+const FAKE = ['FAKE_CLI_REFUSE', 'FAKE_CLI_FAIL', 'FAKE_CLI_JAIL', 'FAKE_CLI_SANDBOXES', 'FAKE_CLI_TEMPLATES', 'FAKE_CLI_AGENTS', 'FAKE_CLI_STREAM', 'FAKE_CLI_PIDFILE', 'FAKE_CLI_ARGVFILE']
 afterEach(() => {
   for (const k of FAKE) delete process.env[k]
 })
@@ -33,7 +33,7 @@ async function mk(): Promise<Hono> {
 }
 
 const headers = { host: '127.0.0.1:4180', 'content-type': 'application/json' }
-const body = { q: 'where do renewals stand?', model: 'sonnet', effort: 'medium', skill: 'llm-wiki:ask' }
+const body = { q: 'where do renewals stand?', skill: 'llm-wiki:search' }
 const post = (app: Hono, b: object = body) => app.request('/api/wikis/kb/ask', { method: 'POST', headers, body: JSON.stringify(b) })
 
 function events(text: string): Array<{ event: string; data: Record<string, unknown> }> {
@@ -63,7 +63,7 @@ describe('ask stream', () => {
     const evs = events(await res.text())
     expect(evs.map((e) => e.event)).toEqual(['start', 'tool', 'text', 'text', 'result'])
     expect(evs.filter((e) => e.event === 'text').map((e) => e.data.text).join('')).toBe('The answer cites [[Some page]].')
-    expect(evs[4]!.data).toMatchObject({ answer: 'The answer cites [[Some page]].', skill: 'llm-wiki:ask', outcome: 'ok', session: 'fake-session' })
+    expect(evs[4]!.data).toMatchObject({ answer: 'The answer cites [[Some page]].', skill: 'llm-wiki:search', outcome: 'ok', session: 'fake-session' })
   })
 
   it('kills the session when the browser goes away', async () => {
@@ -110,21 +110,60 @@ describe('ask refusals', () => {
     expect(j.fix).toMatch(/ wiki kb sandboxes enable read-search$/)
   })
 
-  it('501 without a command to run when the wiki has no read-search template yet', async () => {
+  it('501 naming seed then enable when the wiki has no read-search template yet', async () => {
     process.env.FAKE_CLI_TEMPLATES = 'harvest,no-network'
     process.env.FAKE_CLI_SANDBOXES = 'no-network'
     const res = await post(await mk())
     expect(res.status).toBe(501)
     const j = (await res.json()) as { error: string; fix?: string }
     expect(j.error).toMatch(/no read-search sandbox yet/)
-    expect(j.fix).toBeUndefined()
+    expect(j.fix).toMatch(/ wiki kb sandboxes seed read-search && .* wiki kb sandboxes enable read-search$/)
   })
 
-  it('501 when the CLI has no run-harness', async () => {
-    process.env.FAKE_CLI_FAIL = 'run-harness'
+  it('501 when the CLI has no harness run', async () => {
+    process.env.FAKE_CLI_FAIL = 'harness'
     const res = await post(await mk())
     expect(res.status).toBe(501)
-    expect(((await res.json()) as { error: string }).error).toMatch(/no run-harness/)
+    expect(((await res.json()) as { error: string }).error).toMatch(/no harness run/)
+  })
+
+  it('turns the CLI refusal line into plain words: confined 501, busy 429, a missing template 501 with the fix', async () => {
+    process.env.FAKE_CLI_REFUSE = 'already_confined:already confined; nono cannot nest'
+    expect((await post(await mk())).status).toBe(501)
+    process.env.FAKE_CLI_REFUSE = 'busy:another harness run is live on this wiki'
+    const busy = await post(await mk())
+    expect(busy.status).toBe(429)
+    expect(((await busy.json()) as { error: string }).error).toMatch(/already answering/)
+    process.env.FAKE_CLI_REFUSE = 'sandbox_not_enabled:no template read-search; run sandboxes seed read-search'
+    const seed = await post(await mk())
+    expect(seed.status).toBe(501)
+    expect(((await seed.json()) as { fix: string }).fix).toMatch(/sandboxes seed read-search/)
+  })
+
+  it('400 for a dash-led or oversized question, before any CLI call', async () => {
+    process.env.FAKE_CLI_FAIL = '1'
+    const app = await mk()
+    expect((await post(app, { ...body, q: '--version' })).status).toBe(400)
+    expect((await post(app, { ...body, q: 'x'.repeat(8193) })).status).toBe(400)
+  })
+
+  it('passes model and effort only when chosen, and refuses one off the lists', async () => {
+    const file = resolve(tmpdir(), `dash-argv-${process.pid}-${Date.now()}.json`)
+    process.env.FAKE_CLI_ARGVFILE = file
+    const argvOf = async (b: object) => {
+      await (await post(app, b)).text()
+      return JSON.parse(readFileSync(file, 'utf8')) as string[]
+    }
+    const app = await mk()
+    try {
+      const plain = await argvOf(body)
+      expect(plain.some((a) => a.startsWith('model=') || a.startsWith('effort='))).toBe(false)
+      expect(plain).not.toContain('--read-only')
+      expect(await argvOf({ ...body, model: 'opus', effort: 'high' })).toEqual(expect.arrayContaining(['model=opus', 'effort=high']))
+      expect((await post(app, { ...body, model: 'gpt-5' })).status).toBe(400)
+    } finally {
+      rmSync(file, { force: true })
+    }
   })
 
   it('400 for a skill off the list or an agent the wiki has not enabled', async () => {

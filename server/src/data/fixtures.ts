@@ -505,7 +505,7 @@ export function fixturesSource(): Source {
       const pages = [...new Set([...answer.matchAll(/\[\[[^\]|]+\|?([^\]]*)\]\]/g)].map((m) => m[1] || m[0].slice(2, -2)))]
       yield { type: 'start' }
       for (const step of [
-        { name: 'Reading the wiki’s ask policy' },
+        { name: 'Reading the wiki’s search policy' },
         { name: 'Searching', detail: req.q },
         ...pages.map((p) => ({ name: 'Reading', detail: p })),
       ]) {
@@ -518,7 +518,7 @@ export function fixturesSource(): Source {
         if (signal.aborted) return
         yield { type: 'text', text: word }
       }
-      yield { type: 'result', q: req.q, answer, skill: req.skill, model: req.model, effort: req.effort, elapsedS: Math.round((Date.now() - started) / 1000), outcome: 'ok' }
+      yield { type: 'result', q: req.q, answer, skill: req.skill, model: req.model ?? 'sonnet', effort: req.effort ?? 'medium', elapsedS: Math.round((Date.now() - started) / 1000), outcome: 'ok' }
     },
     facets: async (key): Promise<Facets> => {
       wiki(key)

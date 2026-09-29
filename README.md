@@ -63,27 +63,34 @@ the reader. Leaving the page or pressing Stop ends the session. A finished
 answer is kept for the tab, so the same question shows again without running
 until **Ask again**.
 
-The server runs, with the read floor on:
+The server runs:
 
 ```
-llm-wiki-cli wiki --read-only <key> run-harness --sandbox read-search --skill <skill> [--agent <a>] model=<m> effort=<e> --stream -- <question>
+llm-wiki-cli wiki <key> harness run sandbox=read-search skill=<skill> [agent=<a>] [model=<m>] [effort=<e>] --stream -- <question>
 ```
 
-The question is the only thing from the browser on that line, and it goes
-after `--`. The gear picks the model, the effort, the skill and, when the wiki
-has enabled agents, the agent, kept per browser. The server accepts only what
-`DASHBOARD_ASK_MODELS`, `DASHBOARD_ASK_EFFORTS` and `DASHBOARD_ASK_SKILLS`
-list (default skill `llm-wiki:ask`, which the llm-wiki plugin ships), and one
+This is the one CLI call without the read floor. `harness run` counts as a
+writing verb because it spends model budget, and the read floor must stay safe
+to pre-approve. The session runs jailed in `read-search`, which writes nothing
+in the wiki. The question is the only thing from the browser on that line: it
+goes after `--`, is at most 8 KiB, and never starts with a dash. The gear picks
+the model and the effort ("default" passes neither, so the harness uses your
+own), the skill and, when the wiki has enabled agents, the agent, kept per
+browser. The server accepts only what `DASHBOARD_ASK_MODELS`,
+`DASHBOARD_ASK_EFFORTS` and `DASHBOARD_ASK_SKILLS` list (default skill
+`llm-wiki:search`, which the llm-wiki plugin ships with an answer mode), and one
 question at a time per wiki. The stream is the CLI's own JSON lines relayed as
-server-sent events; there is no AI library.
+server-sent events; there is no AI library. An answer is an agent's words, so
+the page never loads anything from it: an image renders as a link.
 
 Ask is off, and the page says why before anyone types, when:
 
-- the CLI has no `run-harness` yet (update the llm-wiki plugins);
-- the dashboard runs in a jail (`npm run start:jailed`), because a jail cannot
-  start another: use `npm start` for Ask;
-- the wiki's `read-search` sandbox is not enabled on this machine: the page
-  shows the `sandboxes enable read-search` command.
+- the CLI has no `harness run` yet (update the llm-wiki plugins);
+- the dashboard runs in a jail (`npm run start:jailed`), because a confined
+  process cannot start another: use `npm start` for Ask;
+- the wiki has no `read-search` sandbox (the page shows `sandboxes seed
+  read-search`, then `sandboxes enable read-search`), or has one that is not
+  enabled on this machine.
 
 Demo mode streams a canned answer with the same steps.
 

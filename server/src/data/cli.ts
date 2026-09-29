@@ -2,6 +2,12 @@
 // verb name, and built from validated arguments. Routes never hand a string
 // from the browser to this file: they pick a verb and pass typed values, and
 // the wiki key must already be one the registry answered.
+//
+// Every verb runs under the read floor (`wiki --read-only` and
+// LLM_WIKI_PERMISSIONS=read) except one: `harness run`, which the CLI counts
+// as writing because it spends model budget. It runs jailed in a sandbox that
+// writes nothing, and the only thing from the browser on its line is the
+// question, after `--` (owner ruling 2026-09-28, simple10/llm-wiki-plugins#2680).
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { config } from '../config/index.js'
@@ -22,9 +28,9 @@ export interface Args {
   sha?: string
   /** A session id or op name, for `op show`. */
   target?: string
-  /** A skill name for `run-harness --skill`, like `llm-wiki:ask`. */
+  /** A skill name for `harness run skill=`, like `llm-wiki:search`. */
   skill?: string
-  /** An enabled agent's name, for `run-harness --agent`. */
+  /** An enabled agent's name, for `harness run agent=`. */
   agent?: string
   model?: string
   effort?: string
@@ -116,9 +122,12 @@ function word(v: string | undefined, what: string): string {
   return v
 }
 
-function question(v: string | undefined): string {
+/** A question is one argv element: at most 8 KiB, and never dash-led, which the harness would read as a flag. */
+export function question(v: string | undefined): string {
   const t = (v ?? '').trim()
-  if (!t || t.length > 2000 || /[\x00-\x08\x0b-\x1f]/.test(t)) throw new CliError('a question is 1–2000 characters of text', 'args')
+  if (!t || /[\x00-\x08\x0b-\x1f]/.test(t) || Buffer.byteLength(t) > 8192)
+    throw new CliError('a question is 1 to 8192 bytes of text', 'args')
+  if (t.startsWith('-')) throw new CliError('a question cannot start with a dash', 'args')
   return t
 }
 
@@ -154,20 +163,36 @@ export const VERBS = {
   'wiki.whereami': (a: Args) => wiki(a, 'whereami'),
   'wiki.sandboxes.ls': (a: Args) => wiki(a, 'sandboxes', 'ls'),
   'wiki.agents.ls': (a: Args) => wiki(a, 'agents', 'ls', '--enabled'),
-  // One question in a jailed harness session, streamed as JSON lines. Spelled
-  // out rather than through wiki(): `--stream` replaces `--json`, and the
-  // question goes after `--` so it is never read as a flag.
-  'wiki.run-harness': (a: Args) => {
+  // One question in a jailed harness session, streamed as JSON lines. The one
+  // verb without the read floor (see the top of this file). Values are
+  // `key=value`; model and effort are passed only when chosen, so the harness
+  // otherwise uses the person's own default.
+  'wiki.harness.run': (a: Args) => {
     if (!a.skill || !SKILL.test(a.skill)) throw new CliError(`bad skill: ${String(a.skill)}`, 'args')
     return [
-      'wiki', '--read-only', key(a.wiki), 'run-harness', '--sandbox', ASK_SANDBOX, '--skill', a.skill,
-      ...(a.agent !== undefined ? ['--agent', word(a.agent, 'agent')] : []),
-      `model=${word(a.model, 'model')}`, `effort=${word(a.effort, 'effort')}`, '--stream', '--', question(a.text),
+      'wiki', key(a.wiki), 'harness', 'run', `sandbox=${ASK_SANDBOX}`, `skill=${a.skill}`,
+      ...(a.agent !== undefined ? [`agent=${word(a.agent, 'agent')}`] : []),
+      ...(a.model !== undefined ? [`model=${word(a.model, 'model')}`] : []),
+      ...(a.effort !== undefined ? [`effort=${word(a.effort, 'effort')}`] : []),
+      '--stream', '--', question(a.text),
     ]
   },
 } as const
 
 export type Verb = keyof typeof VERBS
+
+/** The verbs that run without the read floor. */
+const WRITES: ReadonlySet<Verb> = new Set<Verb>(['wiki.harness.run'])
+
+/** The child's environment: the read floor unless the verb writes, and never the dashboard's own settings or token. */
+export function childEnv(verb: Verb): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {}
+  for (const [k, v] of Object.entries(process.env)) if (!k.startsWith('DASHBOARD_')) env[k] = v
+  Object.assign(env, config.cliEnv)
+  if (WRITES.has(verb)) delete env.LLM_WIKI_PERMISSIONS
+  else env.LLM_WIKI_PERMISSIONS = 'read'
+  return env
+}
 
 export class CliError extends Error {
   constructor(
@@ -223,7 +248,7 @@ export function spawnRunner(): Runner {
       const argv = [...pre, ...VERBS[verb](args)]
       return new Promise<T>((resolve, reject) => {
         const child = spawn(bin, argv, {
-          env: { ...process.env, ...config.cliEnv },
+          env: childEnv(verb),
           stdio: ['ignore', 'pipe', 'pipe'],
         })
         let out = ''
@@ -262,7 +287,7 @@ export function spawnRunner(): Runner {
       const argv = [...pre, ...VERBS[verb](args)]
       // Its own process group, so one signal reaches everything it started.
       const child = spawn(bin, argv, {
-        env: { ...process.env, ...config.cliEnv },
+        env: childEnv(verb),
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: true,
       })

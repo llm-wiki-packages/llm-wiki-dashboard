@@ -65,41 +65,49 @@ describe('timeline argv', () => {
   })
 })
 
-describe('run-harness argv', () => {
-  const base = { wiki: 'kb', skill: 'llm-wiki:ask', model: 'sonnet', effort: 'medium' }
-  it('runs in read-search with --skill and --stream, and puts the question after --', () => {
-    expect(cli.VERBS['wiki.run-harness']({ ...base, text: '-why?' })).toEqual([
-      'wiki', '--read-only', 'kb', 'run-harness', '--sandbox', 'read-search', '--skill', 'llm-wiki:ask',
-      'model=sonnet', 'effort=medium', '--stream', '--', '-why?',
+describe('harness run argv', () => {
+  const base = { wiki: 'kb', skill: 'llm-wiki:search' }
+  it('spells values as key=value, omits model and effort unless chosen, and puts the question after --', () => {
+    expect(cli.VERBS['wiki.harness.run']({ ...base, text: 'why?' })).toEqual([
+      'wiki', 'kb', 'harness', 'run', 'sandbox=read-search', 'skill=llm-wiki:search', '--stream', '--', 'why?',
+    ])
+    expect(cli.VERBS['wiki.harness.run']({ ...base, agent: 'researcher', model: 'opus', effort: 'high', text: 'q' })).toEqual([
+      'wiki', 'kb', 'harness', 'run', 'sandbox=read-search', 'skill=llm-wiki:search', 'agent=researcher', 'model=opus', 'effort=high', '--stream', '--', 'q',
     ])
   })
-  it('names an agent only when given one, and never adds --json', () => {
-    const argv = cli.VERBS['wiki.run-harness']({ ...base, agent: 'researcher', text: 'q' })
-    expect(argv.slice(8, 10)).toEqual(['--agent', 'researcher'])
+  it('is the one verb without --read-only, and never adds --json', () => {
+    const argv = cli.VERBS['wiki.harness.run']({ ...base, text: 'q' })
+    expect(argv).not.toContain('--read-only')
     expect(argv).not.toContain('--json')
   })
-  it('refuses a flag-shaped model or agent, and a skill that is not a unit name', () => {
-    expect(() => cli.VERBS['wiki.run-harness']({ ...base, model: '--x', text: 'q' })).toThrow(cli.CliError)
-    expect(() => cli.VERBS['wiki.run-harness']({ ...base, agent: '--dangerously-skip-permissions', text: 'q' })).toThrow(cli.CliError)
-    expect(() => cli.VERBS['wiki.run-harness']({ ...base, skill: '../ask', text: 'q' })).toThrow(cli.CliError)
-    expect(() => cli.VERBS['wiki.run-harness']({ ...base, skill: 'a:b:c', text: 'q' })).toThrow(cli.CliError)
+  it('refuses a flag-shaped model or agent, a skill that is not a unit name, and a dash-led or oversized question', () => {
+    expect(() => cli.VERBS['wiki.harness.run']({ ...base, model: '--x', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.harness.run']({ ...base, agent: '--dangerously-skip-permissions', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.harness.run']({ ...base, skill: '../ask', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.harness.run']({ ...base, skill: 'a:b:c', text: 'q' })).toThrow(cli.CliError)
+    expect(() => cli.VERBS['wiki.harness.run']({ ...base, text: '--version' })).toThrow(/dash/)
+    expect(() => cli.VERBS['wiki.harness.run']({ ...base, text: 'é'.repeat(4097) })).toThrow(/8192 bytes/)
+    expect(cli.VERBS['wiki.harness.run']({ ...base, text: 'x'.repeat(8192) }).at(-1)).toHaveLength(8192)
   })
 })
 
 describe('stream runner', () => {
-  const ask = { wiki: 'kb', skill: 'llm-wiki:ask', model: 'sonnet', effort: 'medium', text: 'renewals?' }
+  const ask = { wiki: 'kb', skill: 'llm-wiki:search', text: 'renewals?' }
   const collect = async (gen: AsyncGenerator<import('../src/data/cli.js').StreamLine>) => {
     const out = []
     for await (const l of gen) out.push(l)
     return out
   }
 
-  it('yields each JSON line in order, skips the rest, runs under the read floor, and ends with _exit', async () => {
-    const lines = await collect(cli.spawnRunner().stream('wiki.run-harness', ask))
+  it('yields each JSON line in order, skips the rest, and ends with _exit; the child has no read floor and no DASHBOARD_ settings', async () => {
+    process.env.DASHBOARD_TOKEN = 'secret-token-secret-token'
+    const lines = await collect(cli.spawnRunner().stream('wiki.harness.run', ask))
+    delete process.env.DASHBOARD_TOKEN
     expect(lines.map((l) => l.type)).toEqual(['start', 'tool', 'text', 'text', 'result', '_exit'])
-    const result = lines[4] as unknown as { argv: string[]; permissions: string }
-    expect(result.permissions).toBe('read')
-    expect(result.argv.slice(0, 4)).toEqual(['wiki', '--read-only', 'kb', 'run-harness'])
+    const result = lines[4] as unknown as { argv: string[]; permissions: string | null; leaked: string[] }
+    expect(result.permissions).toBeNull()
+    expect(result.leaked).toEqual([])
+    expect(result.argv.slice(0, 4)).toEqual(['wiki', 'kb', 'harness', 'run'])
     expect(lines[5]).toMatchObject({ rc: 0, timedOut: false })
   })
 
@@ -110,7 +118,7 @@ describe('stream runner', () => {
     try {
       const stop = new AbortController()
       const seen: string[] = []
-      for await (const l of cli.spawnRunner().stream('wiki.run-harness', ask, { signal: stop.signal })) {
+      for await (const l of cli.spawnRunner().stream('wiki.harness.run', ask, { signal: stop.signal })) {
         seen.push(l.type)
         if (seen.length === 3) stop.abort()
       }
@@ -129,7 +137,7 @@ describe('stream runner', () => {
     process.env.FAKE_CLI_STREAM = 'hang'
     process.env.FAKE_CLI_PIDFILE = pidfile
     try {
-      for await (const l of cli.spawnRunner().stream('wiki.run-harness', ask)) if (l.type === 'tool') break
+      for await (const l of cli.spawnRunner().stream('wiki.harness.run', ask)) if (l.type === 'tool') break
       const pid = Number(readFileSync(pidfile, 'utf8'))
       await expect.poll(() => { try { process.kill(pid, 0); return true } catch { return false } }).toBe(false)
     } finally {
@@ -142,7 +150,7 @@ describe('stream runner', () => {
   it('reports a timeout on the _exit line', async () => {
     process.env.FAKE_CLI_STREAM = 'hang'
     try {
-      const lines = await collect(cli.spawnRunner().stream('wiki.run-harness', ask, { timeoutMs: 150 }))
+      const lines = await collect(cli.spawnRunner().stream('wiki.harness.run', ask, { timeoutMs: 150 }))
       expect(lines.at(-1)).toMatchObject({ type: '_exit', timedOut: true })
     } finally {
       delete process.env.FAKE_CLI_STREAM

@@ -35,7 +35,7 @@ import { brand } from '@dashboard/shared/brand'
 import { config } from '../config/index.js'
 import { ASK_SANDBOX, CliError, type Runner, type Since } from './cli.js'
 import { isPage, readBody, readPages, type PageMeta } from './pages.js'
-import { NotFound, Unsupported, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
+import { Busy, NotFound, Unsupported, emptyCounts, linkStem, stemKey, type Source, type WikiRoot } from './source.js'
 import { replayViews } from './replay.js'
 import { mergeAttention, readHead, readReport } from './briefs.js'
 import type { Timeline } from './timeline.js'
@@ -204,6 +204,36 @@ function windowStart(window?: string | null): string | undefined {
   const d = new Date()
   d.setHours(Number(m[1]), Number(m[2]), 0, 0)
   return d.toISOString()
+}
+
+/** Why Ask is off, in plain words, with the command that fixes it when one does. */
+const askOff = {
+  jailed: () =>
+    new Unsupported('Ask needs the dashboard to run outside a jail, because a confined process cannot start another. Start it with npm start instead'),
+  noTemplate: (key: string) =>
+    new Unsupported(
+      `This wiki has no ${ASK_SANDBOX} sandbox yet, which answers run in`,
+      `${config.cliName} wiki ${key} sandboxes seed ${ASK_SANDBOX} && ${config.cliName} wiki ${key} sandboxes enable ${ASK_SANDBOX}`,
+    ),
+  notEnabled: (key: string) =>
+    new Unsupported(
+      `Answers run in the ${ASK_SANDBOX} sandbox, which is not enabled on this machine for this wiki`,
+      `${config.cliName} wiki ${key} sandboxes enable ${ASK_SANDBOX}`,
+    ),
+}
+
+/** A `harness run` refusal (its one `error` line before the spawn) as the error the route answers with. */
+export function refusal(errorKey: string, message: string, wiki: string): Error {
+  const k = `${errorKey} ${message}`.toLowerCase()
+  if (/confined|jail/.test(k)) return askOff.jailed()
+  if (/seed|template|missing/.test(k)) return askOff.noTemplate(wiki)
+  if (/not.enabled/.test(k)) return askOff.notEnabled(wiki)
+  if (/busy|already running|in progress|lock/.test(k))
+    return new Busy('This wiki is already answering a question, from here or elsewhere on this machine; wait for it')
+  if (/floor|read.?only|permission/.test(k))
+    return new CliError(`harness run refused the read floor, which the dashboard should never set on this call: ${message}`, 'exit')
+  if (/prompt|dash|too large|size|bytes/.test(k)) return new CliError(message, 'args')
+  return new CliError(`harness run: ${message}`, 'exit')
 }
 
 /** `whereami --json`: `jail` is `none` unless the caller already runs in one. */
@@ -779,27 +809,11 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
             soft(cli.run<AgentsLs>('wiki.agents.ls', { wiki: key }), { agents: [] }),
           ])
           const names = agents.agents.filter((a) => a.enabled !== false).map((a) => a.name)
-          const jail = where.sandbox?.jail ?? 'none'
-          if (jail !== 'none')
-            return {
-              available: false,
-              reason: `Ask needs the dashboard to run outside a jail (this one runs in ${jail}), because a jail cannot start another. Start it with npm start instead`,
-              agents: names,
-            }
+          const off = (u: Unsupported): AskStatus => ({ available: false, reason: u.message, fix: u.fix, agents: names })
+          if ((where.sandbox?.jail ?? 'none') !== 'none') return off(askOff.jailed())
           const box = boxes.sandboxes.find((b) => b.name === ASK_SANDBOX)
-          if (!box)
-            return {
-              available: false,
-              reason: `This wiki has no ${ASK_SANDBOX} sandbox yet: answers need llm-wiki plugins with run-harness and that sandbox. Update the plugins, then enable it`,
-              agents: names,
-            }
-          if (!box.enabled)
-            return {
-              available: false,
-              reason: `Answers run in the ${ASK_SANDBOX} sandbox, which is not enabled on this machine for this wiki`,
-              fix: `${config.cliName} wiki ${key} sandboxes enable ${ASK_SANDBOX}`,
-              agents: names,
-            }
+          if (!box) return off(askOff.noTemplate(key))
+          if (!box.enabled) return off(askOff.notEnabled(key))
           return { available: true, agents: names }
         },
         config.ask.statusMs,
@@ -810,7 +824,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       const started = Date.now()
       let begun = false
       const lines = cli.stream(
-        'wiki.run-harness',
+        'wiki.harness.run',
         { wiki: key, skill: req.skill, agent: req.agent, model: req.model, effort: req.effort, text: req.q },
         { timeoutMs: config.ask.timeoutMs, signal },
       )
@@ -821,9 +835,9 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         if (l.type === '_exit') {
           const x = l as Extract<typeof l, { type: '_exit' }>
           if (!begun && /no such command/i.test(x.stderr))
-            throw new Unsupported('The command line on this machine cannot run a harness on request yet (it has no run-harness)')
-          if (!begun && x.spawnError) throw new CliError(`run-harness: ${x.spawnError}`, 'spawn')
-          if (!begun) throw new CliError(x.timedOut ? 'run-harness: timed out before it started' : `run-harness: rc ${x.rc}`, 'exit', x.rc ?? undefined, x.stderr)
+            throw new Unsupported('The command line on this machine cannot run a harness on request yet (it has no harness run): update the llm-wiki plugins')
+          if (!begun && x.spawnError) throw new CliError(`harness run: ${x.spawnError}`, 'spawn')
+          if (!begun) throw new CliError(x.timedOut ? 'harness run: timed out before it started' : `harness run: rc ${x.rc}`, 'exit', x.rc ?? undefined, x.stderr)
           if (signal.aborted) return
           yield {
             type: 'error',
@@ -836,7 +850,8 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         }
         if (l.type === 'error') {
           const message = str('message') ?? str('error') ?? str('detail') ?? 'the session failed'
-          if (!begun) throw new CliError(`run-harness: ${message}`, 'exit', undefined, str('stderr'))
+          // Before the spawn, a refusal is exactly one error line: `error` names it.
+          if (!begun) throw refusal(str('error') ?? '', message, key)
           yield { type: 'error', message, detail: str('detail') }
           return
         }

@@ -1,5 +1,7 @@
 // A page body rendered as an article: markdown, with wikilinks routed to the
-// in-app reader and outside links opened in a new tab.
+// in-app reader and outside links opened in a new tab. What it renders may be
+// an agent's words, so it never loads anything by itself: an image becomes a
+// link to it, and nothing is fetched until someone clicks.
 
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import { Link } from '@tanstack/react-router'
@@ -32,6 +34,12 @@ export function Brief({ wikiKey, markdown }: { wikiKey: string; markdown: string
               </a>
             )
           },
+          img: ({ src, alt }) =>
+            typeof src === 'string' && src ? (
+              <a href={src} target="_blank" rel="noreferrer" className="image-link">
+                {`${alt || 'Image'} (image)`}
+              </a>
+            ) : null,
         }}
       >
         {preparePage(markdown)}

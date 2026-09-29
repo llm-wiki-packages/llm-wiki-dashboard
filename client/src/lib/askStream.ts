@@ -22,7 +22,7 @@ export interface AskRun {
   startedAt?: number
 }
 
-export const askKey = (key: string, r: AskRequest) => ['wiki', key, 'ask', r.q, r.model, r.effort, r.skill, r.agent ?? '']
+export const askKey = (key: string, r: AskRequest) => ['wiki', key, 'ask', r.q, r.model ?? '', r.effort ?? '', r.skill, r.agent ?? '']
 
 export function useAskStream(key: string) {
   const qc = useQueryClient()

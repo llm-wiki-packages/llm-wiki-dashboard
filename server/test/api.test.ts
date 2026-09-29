@@ -145,7 +145,7 @@ describe('ask', () => {
     app.request('/api/wikis/acme-sales/ask', { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(body) })
 
   it('streams the demo answer: start, then the steps the agent takes', async () => {
-    const res = await post({ q: 'where do the renewals stand?', model: 'sonnet', effort: 'medium', skill: 'llm-wiki:ask' })
+    const res = await post({ q: 'where do the renewals stand?', model: 'sonnet', effort: 'medium', skill: 'llm-wiki:search' })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toMatch(/text\/event-stream/)
     const reader = res.body!.getReader()

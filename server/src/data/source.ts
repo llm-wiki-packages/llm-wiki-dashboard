@@ -70,6 +70,9 @@ export class Unsupported extends Error {
   }
 }
 
+/** The wiki is already answering a question. */
+export class Busy extends Error {}
+
 export class NotFound extends Error {
   constructor(what: string) {
     super(`${what} not found`)

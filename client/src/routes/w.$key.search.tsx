@@ -1,13 +1,13 @@
 // Search: the engine's question box with every filter it takes, or an
 // answer: a jailed agent session runs the configured skill (default
-// `llm-wiki:ask`) over the wiki, and its answer streams in with citations.
+// `llm-wiki:search`) over the wiki, and its answer streams in with citations.
 // Results and citations open in the reader. The URL carries the whole query,
 // so either is shareable; an answer runs only when Ask is pressed.
 
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { Search as SearchIcon, Settings2, Sparkles } from 'lucide-react'
-import { SEARCH_FILTER_KINDS, type AskRequest, type AskStatus, type SearchFilterKind } from '@dashboard/shared/types'
+import { SEARCH_FILTER_KINDS, type AskAnswer, type AskRequest, type AskStatus, type SearchFilterKind } from '@dashboard/shared/types'
 import { ApiError, useAskStatus, useConfig, useFacets, useSearch } from '@/lib/api'
 import { useAskSettings, type AskSettings } from '@/lib/askSettings'
 import { useAskStream } from '@/lib/askStream'
@@ -81,8 +81,14 @@ function SearchPage() {
   /** The request a question would run as: an agent is sent only when this wiki has it enabled. */
   const requestFor = (q: string): AskRequest | undefined => {
     if (!settings) return undefined
-    const { agent, ...rest } = settings
-    return { q, ...rest, ...(agent && askStatus.data?.agents.includes(agent) ? { agent } : {}) }
+    const { agent, model, effort, skill } = settings
+    return {
+      q,
+      skill,
+      ...(model ? { model } : {}),
+      ...(effort ? { effort } : {}),
+      ...(agent && askStatus.data?.agents.includes(agent) ? { agent } : {}),
+    }
   }
   const canAsk = askStatus.data?.available === true
   const set = (patch: Partial<Search>) => void navigate({ search: (s) => ({ ...s, ...patch }) })
@@ -385,6 +391,9 @@ function AskGear({
     <Card className="flex flex-wrap items-end gap-5">
       <Field label="Model">
         <Segmented>
+          <Button active={!settings.model} onClick={() => onChange({ model: undefined })}>
+            default
+          </Button>
           {models.map((m) => (
             <Button key={m} active={settings.model === m} onClick={() => onChange({ model: m })}>
               {m}
@@ -394,6 +403,9 @@ function AskGear({
       </Field>
       <Field label="Effort">
         <Segmented>
+          <Button active={!settings.effort} onClick={() => onChange({ effort: undefined })}>
+            default
+          </Button>
           {efforts.map((e) => (
             <Button key={e} active={settings.effort === e} onClick={() => onChange({ effort: e })}>
               {e}
@@ -433,8 +445,9 @@ function AskGear({
             {' '}as the <span className="font-mono">{agent}</span> agent
           </>
         ) : null}{' '}
-        in one jailed agent session that can read the wiki and its search, and write nothing. Kept
-        in this browser.
+        in one jailed agent session that can read the wiki and its search, and write nothing.
+        &ldquo;default&rdquo; passes nothing, so the harness uses your own setting. Kept in this
+        browser.
       </p>
     </Card>
   )
@@ -480,11 +493,13 @@ function AnswerPanel({
   const mine = run.req?.q === req.q ? run : undefined
   const kept = !mine ? asker.cached(req) : undefined
   const ran = mine?.req ?? req
-  const meta = (s?: number) => (
+  // A finished answer names what the harness actually used; before that, what was asked for.
+  const meta = (done?: AskAnswer) => (
     <span className="font-mono text-xs text-ink-3">
       {ran.skill}
-      {ran.agent ? ` · ${ran.agent}` : ''} · {ran.model} · {ran.effort}
-      {s !== undefined ? ` · ${s}s` : ''}
+      {ran.agent ? ` · ${ran.agent}` : ''} · {done?.model ?? ran.model ?? 'default model'} ·{' '}
+      {done?.effort ?? ran.effort ?? 'default effort'}
+      {done ? ` · ${done.elapsedS}s` : ''}
     </span>
   )
   const again = (label: string) => (
@@ -525,7 +540,7 @@ function AnswerPanel({
             {mine.tool ? (
               <>
                 {mine.tool.name}
-                {mine.tool.detail && <span className="text-ink-2"> · {mine.tool.detail}</span>}
+                {mine.tool.detail && <span className="text-ink-2"> · {mine.tool.detail.slice(0, 200)}</span>}
               </>
             ) : (
               'Starting a session…'
@@ -548,7 +563,7 @@ function AnswerPanel({
         <SectionLabel
           right={
             <span className="flex items-center gap-3">
-              {meta(answer.elapsedS)}
+              {meta(answer)}
               {again('Ask again')}
             </span>
           }
@@ -589,9 +604,9 @@ function AskOff({ reason, fix, cli }: { reason?: string; fix?: string; cli?: str
           This turns it on: <code className="font-mono">{fix}</code>
         </span>
       )}
-      {!fix && cli && reason && /run-harness/.test(reason) && (
+      {!fix && cli && reason && /harness run/.test(reason) && (
         <span className="text-warn-ink">
-          Update the llm-wiki plugins, then check with{' '}
+          The installed version:{' '}
           <code className="font-mono">{cli} machine version</code>
         </span>
       )}
