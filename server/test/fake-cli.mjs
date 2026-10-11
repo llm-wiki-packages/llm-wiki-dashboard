@@ -10,6 +10,8 @@
 //   `FAKE_CLI_SANDBOXES` the enabled sandboxes (default `no-network,read-search`),
 //   `FAKE_CLI_TEMPLATES` the wiki's templates (default `harvest,no-network,read-search`),
 //   `FAKE_CLI_AGENTS` the enabled agents (default none), `FAKE_CLI_WIKI_PATH` the wiki's directory.
+// - `pipeline jobs ls` and `pipeline due` answer the jobs below, echoing the argv
+//   and the read floor beside them; `op since` and `git changed` answer empty.
 // - `harness run … --stream` prints the normalized JSON lines, one every
 //   `FAKE_CLI_STREAM_MS` (default 20ms). `FAKE_CLI_PIDFILE` gets its pid, and
 //   `FAKE_CLI_STREAM=hang` keeps it printing until it is killed.
@@ -24,6 +26,35 @@ const env = process.env
 const out = (o) => process.stdout.write(JSON.stringify({ ...o, _cmd_: { elapsed_ms: 0, wiki: null, head: null } }))
 const verb = argv.filter((a) => !a.startsWith('-')).slice(argv[0] === 'wiki' ? 2 : 0)
 const is = (...words) => words.every((w, i) => verb[i] === w)
+const echo = { argv, permissions: env.LLM_WIKI_PERMISSIONS ?? null }
+
+// A fresh wiki's seven `ops-` jobs with `ops-nightly` resumed, and one watch that is running now.
+const job = (slug, skill, state, more = {}) => ({ slug, description: '', every: '1d', skill, state, blocked: null, ...more })
+const JOBS = [
+  job('arxiv-cs', 'arxiv', 'active', { description: 'arXiv cs.AI listing, every six hours', target: 'https://arxiv.org/list/cs.AI/recent', dest: 'sources/papers', every: '6h' }),
+  job('ops-hourly-host', 'llm-wiki:index', 'active', { every: '1h' }),
+  job('ops-nightly-host', 'llm-wiki:index', 'active'),
+  job('ops-denials', 'llm-wiki:denials', 'paused'),
+  job('ops-hourly', 'llm-wiki:curate', 'paused', { every: '1h' }),
+  job('ops-nightly', 'llm-wiki:wiki-report', 'active'),
+  job('ops-morning', 'daily-report', 'paused'),
+  job('ops-synthesize', 'your-synthesis-skill', 'paused'),
+]
+const dueRow = (slug, due, reasons, window = null) => ({ job: slug, stage: slug === 'arxiv-cs' ? 'harvest' : 'routine', due, reasons, blocked_by: [], window, due_since: null })
+const DUE = {
+  running: [{ job: 'arxiv-cs', stage: 'harvest', machine: 'box-a', since: '2026-10-11T09:00:00Z' }],
+  pending: [],
+  review: [],
+  parked: [],
+  jobs: [
+    dueRow('arxiv-cs', true, ['every 6h — last ran 7h ago']),
+    dueRow('ops-hourly-host', true, ['never run']),
+    dueRow('ops-nightly-host', false, ['never run — waits for the 02:00-06:00 window'], '02:00-06:00'),
+    dueRow('ops-nightly', false, ['never run — waits for the 22:00-06:00 window'], '22:00-06:00'),
+    ...['ops-denials', 'ops-hourly', 'ops-morning', 'ops-synthesize'].map((slug) => dueRow(slug, false, ['paused'])),
+  ],
+  caps: {},
+}
 
 if (env.FAKE_CLI_FAIL === '1' || env.FAKE_CLI_FAIL === verb[0]) {
   process.stderr.write(`Usage: llm-wiki-ops [OPTIONS] COMMAND [ARGS]...\nTry 'llm-wiki-ops --help' for help.\n\nError: No such command '${verb[0]}'.\n`)
@@ -40,6 +71,14 @@ if (is('machine', 'wikis', 'ls')) {
   out({ sandboxes: all.map((name) => ({ name, enabled: on.includes(name) })) })
 } else if (is('agents', 'ls')) {
   out({ agents: (env.FAKE_CLI_AGENTS ?? '').split(',').filter(Boolean).map((name) => ({ name, enabled: true })) })
+} else if (is('pipeline', 'jobs', 'ls')) {
+  out({ count: JOBS.length, jobs: JOBS, ...echo })
+} else if (is('pipeline', 'due')) {
+  out({ ...DUE, ...echo })
+} else if (is('op', 'since')) {
+  out({ runs: [] })
+} else if (is('git', 'changed')) {
+  out({ files: [] })
 } else if (argv.includes('--stream') && env.FAKE_CLI_REFUSE) {
   const [error, ...rest] = env.FAKE_CLI_REFUSE.split(':')
   process.stdout.write(JSON.stringify({ type: 'error', error, message: rest.join(':') }) + '\n')
@@ -67,5 +106,5 @@ if (is('machine', 'wikis', 'ls')) {
     process.stdout.write((typeof l === 'string' ? l : JSON.stringify(l)) + '\n')
   }, Number(env.FAKE_CLI_STREAM_MS ?? 20))
 } else {
-  out({ argv, permissions: env.LLM_WIKI_PERMISSIONS ?? null })
+  out(echo)
 }

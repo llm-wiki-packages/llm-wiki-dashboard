@@ -47,7 +47,6 @@ interface WikisLs {
 }
 export interface Status {
   machine: string
-  schedules?: { total: number; enabled: string[] }
   peers?: Array<{ machine: string; capabilities?: string[]; last_seen?: string | null; state?: string }>
   problems?: unknown
   git?: { unpushed?: number; behind?: number; dirty?: number }
@@ -57,9 +56,6 @@ interface SearchStatus {
   realm_ready?: boolean
   realm_reason?: string
   corpus_files?: number
-}
-interface ScheduleLs {
-  bundles: Array<{ name: string; enabled: boolean; every?: string; window?: string | null; stages?: string[]; error?: string | null }>
 }
 interface DueRow {
   job?: string
@@ -73,6 +69,11 @@ interface DueRow {
   reason?: string
   blocked?: { reason?: string } | string
   not_before?: string
+  // The per-job `jobs` list: whether the job is due here now, why, its window, and since when.
+  due?: boolean
+  reasons?: string[]
+  window?: string | null
+  due_since?: string | null
 }
 interface PipelineDue {
   running?: DueRow[]
@@ -85,18 +86,16 @@ interface PipelineDue {
 interface JobsLs {
   jobs: Array<{
     slug: string
-    target?: string
-    dest?: string
+    target?: string | null
+    dest?: string | null
     every?: string
     skill?: string
-    unit?: string
     description?: string
-    paused?: boolean
     state?: string
-    blocked?: { reason?: string } | null
-    holders?: Record<string, string>
+    blocked?: { reason?: string } | string | null
   }>
 }
+type Job = JobsLs['jobs'][number]
 interface OpSince {
   runs: Array<{ op: string; outcome: string; summary?: string; when: string; actor?: string }>
 }
@@ -128,7 +127,7 @@ const add = (a: Counts, k: ItemKind) => {
   a[k] += 1
 }
 
-function hostOf(target?: string): string | undefined {
+function hostOf(target?: string | null): string | undefined {
   if (!target) return undefined
   try {
     return new URL(target).hostname.replace(/^www\./, '')
@@ -169,8 +168,8 @@ export function whenOf(p: PageMeta): string {
   return p.harvested?.at ?? p.generated?.at ?? new Date().toISOString()
 }
 
-function stateOfJob(j: JobsLs['jobs'][number], due: PipelineDue): ChannelSummary['state'] {
-  if (j.paused || j.state === 'paused') return 'paused'
+function stateOfJob(j: Job, due: PipelineDue): ChannelSummary['state'] {
+  if (j.state === 'paused') return 'paused'
   if (j.blocked && (typeof j.blocked === 'string' || j.blocked.reason)) return 'blocked'
   const slug = j.slug
   if (due.running?.some((r) => r.job === slug)) return 'running'
@@ -178,7 +177,7 @@ function stateOfJob(j: JobsLs['jobs'][number], due: PipelineDue): ChannelSummary
   return 'idle'
 }
 
-function noteOfJob(j: JobsLs['jobs'][number], due: PipelineDue): string | undefined {
+function noteOfJob(j: Job, due: PipelineDue): string | undefined {
   if (j.blocked) return typeof j.blocked === 'string' ? j.blocked : j.blocked.reason
   const parked = due.parked?.find((r) => r.job === j.slug)
   if (parked) return parked.reason ?? (parked.not_before ? `retry after ${parked.not_before}` : 'parked')
@@ -204,6 +203,33 @@ function windowStart(window?: string | null): string | undefined {
   const d = new Date()
   d.setHours(Number(m[1]), Number(m[2]), 0, 0)
   return d.toISOString()
+}
+
+/** When `window` next opens: today's start if it is still ahead, else tomorrow's. */
+function windowOpens(window?: string | null): string | undefined {
+  const start = windowStart(window)
+  if (!start) return undefined
+  return Date.parse(start) > Date.now() ? start : new Date(Date.parse(start) + 86_400_000).toISOString()
+}
+
+/** When a job that is not due now comes due: its own `due_since` when that is ahead, else its window's next opening. */
+function comesDue(r: DueRow): string | undefined {
+  if (r.due_since && Date.parse(r.due_since) > Date.now()) return new Date(r.due_since).toISOString()
+  return windowOpens(r.window)
+}
+
+/** The skill that writes the wiki's report; the job that runs it writes the briefings. */
+const REPORT_SKILL = 'llm-wiki:wiki-report'
+
+/** The skills a job runs. */
+function skillsOf(j: Job): string[] {
+  return j.skill ? [j.skill] : []
+}
+
+/** Each active job beside its row in `jobs due`'s per-job list, when it has one. */
+function scheduled(js: JobsLs, d: PipelineDue): Array<{ job: Job; due?: DueRow }> {
+  const rows = new Map((d.jobs ?? []).map((r) => [r.job, r]))
+  return js.jobs.filter((j) => j.state === 'active').map((j) => ({ job: j, due: rows.get(j.slug) }))
 }
 
 /** Why Ask is off, in plain words, with the command that fixes it when one does. */
@@ -289,8 +315,6 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
   const status = (wiki: string) => memo(`status:${wiki}`, () => cli.run<Status>('wiki.status', { wiki }))
   const search = (wiki: string) =>
     memo(`search:${wiki}`, () => soft(cli.run<SearchStatus>('wiki.search.status', { wiki }), {}))
-  const schedule = (wiki: string) =>
-    memo(`schedule:${wiki}`, () => soft(cli.run<ScheduleLs>('wiki.schedule.ls', { wiki }), { bundles: [] }))
   const due = (wiki: string) =>
     memo(`due:${wiki}`, () => soft(cli.run<PipelineDue>('wiki.pipeline.due', { wiki }), {}))
   const jobs = (wiki: string) =>
@@ -305,10 +329,9 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     })
 
   async function summary(r: WikiRoot): Promise<WikiSummary> {
-    const [st, se, sc, d, js, rn] = await Promise.all([
+    const [st, se, d, js, rn] = await Promise.all([
       soft(status(r.key), { machine: '' } as Status),
       search(r.key),
-      schedule(r.key),
       due(r.key),
       jobs(r.key),
       runs(r.key, '1d'),
@@ -334,15 +357,20 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       healthNote = `${failedRuns} runs failed today`
     }
     const last = rn.runs[0]
-    const next = sc.bundles.find((b) => b.enabled && b.window && (windowStart(b.window) ?? '') > new Date().toISOString())
+    // The next job to come due: the earliest among those not due now.
+    let next: { job: string; at: string } | undefined
+    for (const { job, due: row } of scheduled(js, d)) {
+      const at = row?.due === false ? comesDue(row) : undefined
+      if (at && (!next || at < next.at)) next = { job: job.slug, at }
+    }
     return {
       key: r.key,
       name: r.name,
       path: r.path,
       pages: se.corpus_files ?? 0,
       channels: js.jobs.length,
-      bundlesEnabled: st.schedules?.enabled.length ?? sc.bundles.filter((b) => b.enabled).length,
-      bundlesTotal: st.schedules?.total ?? sc.bundles.length,
+      bundlesEnabled: js.jobs.filter((j) => j.state === 'active').length,
+      bundlesTotal: js.jobs.length,
       health,
       healthNote,
       machines: machines.size,
@@ -350,7 +378,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       lastRun: last
         ? { op: last.op, outcome: last.outcome, when: last.when, actor: last.actor ?? '', summary: last.summary ?? '' }
         : undefined,
-      nextDue: next ? { bundle: next.name, at: windowStart(next.window) ?? '' } : undefined,
+      nextDue: next ? { bundle: next.job, at: next.at } : undefined,
     }
   }
 
@@ -363,11 +391,10 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       byId.set(j.slug, {
         id: j.slug,
         name: j.description || j.slug,
-        kind: j.unit ?? j.skill ?? 'watch',
+        kind: j.skill ?? 'watch',
         host: hostOf(j.target),
         job: j.slug,
         every: j.every,
-        machine: j.holders ? Object.values(j.holders)[0] : undefined,
         watched: true,
         state: stateOfJob(j, d),
         stateNote: noteOfJob(j, d),
@@ -435,23 +462,22 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     return rows
   }
 
-  function planOf(sc: ScheduleLs, rn: OpSince, d: PipelineDue): PlanItem[] {
+  function planOf(js: JobsLs, rn: OpSince, d: PipelineDue): PlanItem[] {
     const today = sinceMidnight()
     const items: PlanItem[] = []
-    const ranToday = new Set<string>()
     for (const r of rn.runs) {
       if (r.when < today) continue
-      ranToday.add(r.op)
       items.push({ time: r.when, bundle: r.op, text: r.summary ? `${r.op} · ${r.summary}` : r.op, status: r.outcome === 'ok' ? 'done' : 'failed', machine: r.actor?.split('@')[1] })
     }
     for (const r of d.running ?? []) items.push({ time: r.since ?? r.started ?? new Date().toISOString(), bundle: r.job ?? 'pipeline', text: `${r.job ?? 'pipeline'} · ${r.stage ?? 'running'}`, status: 'running', machine: r.machine })
-    for (const b of sc.bundles) {
-      if (!b.enabled) continue
-      const start = windowStart(b.window)
-      const upcoming = start && start > new Date().toISOString()
-      if (upcoming || (!ranToday.has(b.name) && !start)) {
-        items.push({ time: start ?? '', bundle: b.name, text: `${b.name} · ${(b.stages ?? []).join(', ')}${b.every ? ` · every ${b.every}` : ''}`, status: 'upcoming' })
-      }
+    // Scheduled: every active job due now and not yet running, and every one whose window opens later today.
+    const running = new Set((d.running ?? []).map((r) => r.job))
+    for (const { job: j, due: r } of scheduled(js, d)) {
+      if (!r || running.has(j.slug)) continue
+      const start = r.due === false ? windowStart(r.window) : undefined
+      if (r.due === false && !(start && Date.parse(start) > Date.now())) continue
+      const text = [j.slug, skillsOf(j).join(', '), j.every && `every ${j.every}`].filter(Boolean).join(' · ')
+      items.push({ time: start ?? '', bundle: j.slug, text, status: 'upcoming' })
     }
     return items.sort((a, b) => (a.time || '9').localeCompare(b.time || '9'))
   }
@@ -608,7 +634,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       if (at) return replay.today(key, at)
       const r = await root(key)
       const since = hoursSinceMidnight()
-      const [w, pages, d, sc, rn, se] = await Promise.all([summary(r), changed(key, since), due(key), schedule(key), runs(key, since), search(key)])
+      const [w, pages, d, js, rn, se] = await Promise.all([summary(r), changed(key, since), due(key), jobs(key), runs(key, since), search(key)])
       const channels = await channelsOf(key, pages)
       const areas = areasOf(channels, pages)
       const counts = emptyCounts()
@@ -628,7 +654,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         lede,
         areas,
         now: nowOf(d, channels),
-        plan: planOf(sc, rn, d),
+        plan: planOf(js, rn, d),
         attention,
         briefing: todays,
       }
@@ -660,9 +686,9 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       if (at) return replay.fleet(key, at)
       const r = await root(key)
       const since = hoursSinceMidnight()
-      const [w, st, d, sc, rn, pages, se] = await Promise.all([summary(r), soft(status(key), { machine: '' } as Status), due(key), schedule(key), runs(key, since), changed(key, since), search(key)])
+      const [w, st, d, js, rn, pages, se] = await Promise.all([summary(r), soft(status(key), { machine: '' } as Status), due(key), jobs(key), runs(key, since), changed(key, since), search(key)])
       // A wiki with no jobs and a quiet day still has a history worth drawing.
-      const discover = (await jobs(key)).jobs.length || pages.length ? pages : await changed(key, '30d')
+      const discover = js.jobs.length || pages.length ? pages : await changed(key, '30d')
       const channels = await channelsOf(key, pages, discover)
       const runningBy = new Map<string, number>()
       for (const x of d.running ?? []) if (x.machine) runningBy.set(x.machine, (runningBy.get(x.machine) ?? 0) + 1)
@@ -680,17 +706,16 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
           attention: channels.filter((c) => c.state === 'blocked' || c.state === 'failed').length,
         },
         attention: mergeAttention((await todaysReport(key))?.read.attention ?? [], attentionOf(w, channels, se), (a) => a.source ?? ''),
-        plan: planOf(sc, rn, d),
+        plan: planOf(js, rn, d),
       }
     },
     briefings: async (key): Promise<BriefingsView> => {
       const r = await root(key)
-      const [w, reports, sc] = await Promise.all([summary(r), briefingList(key), schedule(key)])
-      // The bundle that writes reports: the first enabled one whose name says so.
-      const b = sc.bundles.find((x) => x.enabled && /morning|brief|report|daily/i.test(x.name))
-      let at = windowStart(b?.window)
-      if (at && at < new Date().toISOString()) at = new Date(new Date(at).getTime() + 86_400_000).toISOString()
-      return { wiki: w, reports, next: b ? { bundle: b.name, at, every: b.every } : undefined }
+      const [w, reports, js, d] = await Promise.all([summary(r), briefingList(key), jobs(key), due(key)])
+      // The job that writes reports: the active one whose routines include the wiki report.
+      const next = scheduled(js, d).find(({ job }) => skillsOf(job).includes(REPORT_SKILL))
+      const at = next?.due?.due === false ? comesDue(next.due) : undefined
+      return { wiki: w, reports, next: next ? { bundle: next.job.slug, at, every: next.job.every } : undefined }
     },
     briefing: async (key, id) => {
       const r = await root(key)

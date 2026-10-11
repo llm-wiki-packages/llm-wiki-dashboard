@@ -145,7 +145,6 @@ export const VERBS = {
   'machine.runner.ls': () => ['machine', 'runner', 'ls', '--json'],
   'wiki.status': (a: Args) => wiki(a, 'status', '--peers'),
   'wiki.search.status': (a: Args) => wiki(a, 'search', 'status'),
-  'wiki.schedule.ls': (a: Args) => wiki(a, 'schedule', 'ls'),
   'wiki.pipeline.due': (a: Args) => wiki(a, 'pipeline', 'due'),
   'wiki.pipeline.jobs.ls': (a: Args) => wiki(a, 'pipeline', 'jobs', 'ls'),
   'wiki.pipeline.tickets.ls': (a: Args) => wiki(a, 'pipeline', 'tickets', 'ls'),
