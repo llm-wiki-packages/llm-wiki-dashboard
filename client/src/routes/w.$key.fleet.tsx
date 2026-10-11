@@ -1,5 +1,5 @@
 // Fleet: who harvested what today, in orbit; health in three numbers; the
-// day hour by hour.
+// day hour by hour; and every job, grouped by kind.
 
 import { createFileRoute } from '@tanstack/react-router'
 import type { PlanItem } from '@dashboard/shared/types'
@@ -8,6 +8,7 @@ import { clock, n, nowDate } from '@/lib/format'
 import { Card, ErrorNote, SectionLabel, Skeleton, Stat } from '@/components/ui'
 import { Orbit } from '@/components/Orbit'
 import { Starters } from '@/components/Starters'
+import { Jobs } from '@/components/Jobs'
 
 export const Route = createFileRoute('/w/$key/fleet')({ component: Fleet })
 
@@ -111,7 +112,7 @@ function Fleet() {
             <Timeline plan={v.plan} />
             <div className="flex flex-col overflow-hidden">
               {v.plan.slice(0, 10).map((p, i) => (
-                <div key={`${p.bundle}-${p.time}-${i}`} className="grid grid-cols-[44px_12px_1fr_auto] items-center gap-2.5 border-t border-line/60 py-[7px]">
+                <div key={`${p.job}-${p.time}-${i}`} className="grid grid-cols-[44px_12px_1fr_auto] items-center gap-2.5 border-t border-line/60 py-[7px]">
                   <span className={`text-[13px] tabular-nums ${p.status === 'upcoming' ? 'text-ink' : p.status === 'running' ? 'text-live' : 'text-ink-3'}`}>
                     {p.status === 'running' ? 'now' : p.time ? clock(p.time) : 'due'}
                   </span>
@@ -125,6 +126,8 @@ function Fleet() {
           </Card>
         </div>
       </div>
+
+      {v.jobs.length > 0 && <Jobs wikiKey={key} jobs={v.jobs} />}
     </div>
   )
 }
@@ -150,7 +153,7 @@ function Timeline({ plan }: { plan: PlanItem[] }) {
           const color = p.status === 'done' ? 'var(--color-good)' : p.status === 'failed' ? 'var(--color-bad)' : p.status === 'running' ? 'var(--color-live)' : 'var(--color-ink)'
           return (
             <span
-              key={`${p.bundle}-${i}`}
+              key={`${p.job}-${i}`}
               title={`${clock(p.time)} ${p.text}`}
               className="absolute top-3 size-2.5 rounded-full border-2"
               style={{ left: `calc(${pct(p.time)}% - 5px)`, borderColor: color, background: p.status === 'upcoming' ? 'var(--color-card)' : color }}

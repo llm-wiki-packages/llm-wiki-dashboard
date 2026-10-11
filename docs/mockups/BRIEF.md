@@ -11,7 +11,7 @@ a prospect watching a demo. It must be visually convincing to the second.
 1. **Home (machine view)** — every wiki registered on this machine, and the
    machines joined to each wiki. This machine is the vantage point.
 2. **Wiki view** — one wiki's activity: sources → pipeline stages → wiki,
-   bundles running on a timeline, and drill-down to job → ticket → logs.
+   jobs running on a timeline, and drill-down to job → ticket → logs.
 
 Home ➜ click a wiki ➜ Wiki view ➜ click a job/edge ➜ tickets ➜ click a
 ticket ➜ record + logs (side panel, not a new page).
@@ -25,11 +25,11 @@ This machine is highlighted. Live work pulses along the wiki↔machine edge.
 Per wiki node:
 - name, key                                (`machine wikis ls`)
 - pages in corpus (e.g. 103)               (`search status`.corpus_files)
-- sources watched (jobs count)             (`pipeline jobs ls`.count)
-- bundles enabled / total (9/10)           (`status`.schedules)
+- sources watched (pipeline jobs)          (`jobs ls`, kind pipeline)
+- jobs active / total (14/15)              (`jobs ls` states)
 - search state: engine | grep fallback     (`search status`.serving)
 - last run: op, outcome, when              (`op since`.runs[0])
-- next due                                 (`schedule ls`)
+- next due                                 (`jobs due`.jobs: window, due, due_since)
 - health dot: ok / attention / failing     (`doctor`)
 - git: unpushed, behind, dirty             (`status`.git)
 
@@ -63,11 +63,11 @@ running · pending · review · parked (amber) · blocked (amber, with reason)
 
 ### Second: activity strip
 Horizontal time axis (24h default, 7d option). One swimlane per **machine**
-joined to this wiki. Bars are bundle runs: name (hourly, nightly, morning,
-improve, maintenance, denials, wiki-report, nightly-index), duration,
-outcome color. Running bars pulse at the right edge. Bundle windows
-(e.g. nightly 22:00–06:00) are faint bands behind the lane.
-Data: `op since`, `schedule ls`, `pipeline tickets ls`.
+joined to this wiki. Bars are job runs: name (ops-hourly, ops-hourly-host,
+ops-nightly, ops-nightly-host, ops-morning, ops-denials, ops-synthesize, and
+the watches), duration, outcome color. Running bars pulse at the right edge.
+Job windows (e.g. ops-nightly 22:00–06:00) are faint bands behind the lane.
+Data: `op since`, `jobs due`, `tickets ls`.
 
 ### Side panel drill-down (slides in from the right)
 - Job card: target, source host, dest, every, skill, state holders per
@@ -102,6 +102,9 @@ Data: `op since`, `schedule ls`, `pipeline tickets ls`.
   the dev box today; see real-shapes below).
 
 ## Real JSON shapes (from this machine, 2026-09-27, wiki `knowledgebase`)
+As captured then. Since retired: `schedule ls` and `status.schedules` (the
+bundles became jobs), and the `pipeline` and `schedule` groups (now `jobs`,
+`tickets`, `denylist` and `tick`).
 ```json
 // machine wikis ls
 {"count":1,"wikis":[{"key":"knowledgebase","name":"llm-wiki-knowledgebase","path":"/Users/joe/Development/ai-tools/llm-wiki-knowledgebase"}]}

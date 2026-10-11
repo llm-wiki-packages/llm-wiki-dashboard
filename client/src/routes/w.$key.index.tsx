@@ -154,7 +154,7 @@ function Today() {
               <div className="text-sm text-ink-2">
                 Nothing is running.{' '}
                 {v.wiki.nextDue
-                  ? `Next: ${v.wiki.nextDue.bundle} ${timeAgo(v.wiki.nextDue.at)}.`
+                  ? `Next: ${v.wiki.nextDue.job} ${timeAgo(v.wiki.nextDue.at)}.`
                   : ''}
               </div>
             ) : (
@@ -175,7 +175,7 @@ function Today() {
             ) : (
               <div className="flex flex-col">
                 {v.plan.slice(0, 8).map((p, i) => (
-                  <PlanRow key={`${p.bundle}-${p.time}-${i}`} item={p} />
+                  <PlanRow key={`${p.job}-${p.time}-${i}`} item={p} />
                 ))}
               </div>
             )}

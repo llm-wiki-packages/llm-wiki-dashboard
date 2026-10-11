@@ -3,7 +3,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { Hono } from 'hono'
-import type { TodayView } from '@dashboard/shared/types'
+import type { FleetView, JobView, TodayView } from '@dashboard/shared/types'
 
 process.env.DASHBOARD_SOURCE = 'fixtures'
 process.env.DASHBOARD_TOKEN = 'test-token-test-token-test'
@@ -60,6 +60,26 @@ describe('views', () => {
     expect((cfg as unknown as { cli: string }).cli).toBe('llm-wiki-cli')
     expect(cfg.mode).toBe('read')
     expect(cfg.source).toBe('fixtures')
+  })
+})
+
+describe('jobs', () => {
+  it("fleet lists the seven ops- jobs as routines beside the watches, the demo's paused and part-run ones as states", async () => {
+    const view = (await (await app.request('/api/wikis/acme-sales/fleet', { headers })).json()) as FleetView
+    const ops = view.jobs.filter((j) => j.slug.startsWith('ops-'))
+    expect(ops.map((j) => j.slug)).toEqual(['ops-denials', 'ops-hourly', 'ops-hourly-host', 'ops-morning', 'ops-nightly', 'ops-nightly-host', 'ops-synthesize'])
+    expect(ops.every((j) => j.kind === 'routines')).toBe(true)
+    expect(view.jobs.filter((j) => j.kind === 'pipeline')).toHaveLength(8)
+    expect(ops.find((j) => j.slug === 'ops-synthesize')?.state).toBe('paused')
+    expect(view.attention.some((a) => /ops-/.test(`${a.title} ${a.source ?? ''}`))).toBe(false)
+  })
+  it("opens a job's details and routines, 404s an unknown one and refuses a slug that is not one", async () => {
+    const res = await app.request('/api/wikis/acme-sales/jobs/ops-nightly', { headers })
+    const job = (await res.json()) as JobView
+    expect(job.details).toHaveLength(3)
+    expect(job.routines.map((r) => r.skill)).toEqual(['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'])
+    expect((await app.request('/api/wikis/acme-sales/jobs/nope', { headers })).status).toBe(404)
+    expect((await app.request('/api/wikis/acme-sales/jobs/--all', { headers })).status).toBe(400)
   })
 })
 

@@ -116,4 +116,10 @@ only ever name tokens.
 ## Requirements
 
 Node 24 or later, and the llm-wiki ops distribution on the machine
-(`llm-wiki-cli` on `PATH`, or `DASHBOARD_CLI` pointing at it).
+(`llm-wiki-cli` on `PATH`, or `DASHBOARD_CLI` pointing at it), at
+`min_ops_version` in `llm-wiki-package.json` or later: the build that answers
+`jobs ls`, `jobs due` and `tickets ls` as groups of their own, with the
+reshaped job record (`kind`, `claim`, `machine`, a routines job's skills as a
+list). An older build answers none of those verbs.
+
+<!-- TODO: set min_ops_version in llm-wiki-package.json to the version the merger assigns the PR that lands simple10/llm-wiki-plugins#3234's PR 1 (the jobs grammar, after #3233's record reshape). 0.8.0 is provisional: ops 0.6.0 plus one minor each. The manifest's key set is closed, so the TODO lives here. -->

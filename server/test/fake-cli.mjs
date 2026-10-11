@@ -10,8 +10,9 @@
 //   `FAKE_CLI_SANDBOXES` the enabled sandboxes (default `no-network,read-search`),
 //   `FAKE_CLI_TEMPLATES` the wiki's templates (default `harvest,no-network,read-search`),
 //   `FAKE_CLI_AGENTS` the enabled agents (default none), `FAKE_CLI_WIKI_PATH` the wiki's directory.
-// - `jobs ls` and `jobs due` answer the jobs below, echoing the argv
-//   and the read floor beside them; `op since` and `git changed` answer empty.
+// - `jobs ls`, `jobs due` and `jobs show <slug>` answer the jobs below, echoing
+//   the argv and the read floor beside them; `FAKE_CLI_PAUSED` names jobs to
+//   answer paused. `op since` and `git changed` answer empty.
 // - `harness run … --stream` prints the normalized JSON lines, one every
 //   `FAKE_CLI_STREAM_MS` (default 20ms). `FAKE_CLI_PIDFILE` gets its pid, and
 //   `FAKE_CLI_STREAM=hang` keeps it printing until it is killed.
@@ -29,17 +30,32 @@ const is = (...words) => words.every((w, i) => verb[i] === w)
 const echo = { argv, permissions: env.LLM_WIKI_PERMISSIONS ?? null }
 
 // A fresh wiki's seven `ops-` jobs with `ops-nightly` resumed, and one watch that is running now.
-const job = (slug, skill, state, more = {}) => ({ slug, description: '', every: '1d', skill, state, blocked: null, ...more })
+// A routines job lists its skills in order and has no target or dest.
+const paused = (env.FAKE_CLI_PAUSED ?? '').split(',')
+const routines = (slug, skill, state, claim, more = {}) => ({ slug, description: '', kind: 'routines', claim, machine: null, every: '1d', skill, state: paused.includes(slug) ? 'paused' : state, blocked: null, ...more })
 const JOBS = [
-  job('arxiv-cs', 'arxiv', 'active', { description: 'arXiv cs.AI listing, every six hours', target: 'https://arxiv.org/list/cs.AI/recent', dest: 'sources/papers', every: '6h' }),
-  job('ops-hourly-host', 'llm-wiki:index', 'active', { every: '1h' }),
-  job('ops-nightly-host', 'llm-wiki:index', 'active'),
-  job('ops-denials', 'llm-wiki:denials', 'paused'),
-  job('ops-hourly', 'llm-wiki:curate', 'paused', { every: '1h' }),
-  job('ops-nightly', 'llm-wiki:wiki-report', 'active'),
-  job('ops-morning', 'daily-report', 'paused'),
-  job('ops-synthesize', 'your-synthesis-skill', 'paused'),
+  { slug: 'arxiv-cs', description: 'arXiv cs.AI listing, every six hours', kind: 'pipeline', claim: 'any', machine: null, target: 'https://arxiv.org/list/cs.AI/recent', dest: 'sources/papers', route: 'sources', every: '6h', skill: 'arxiv', state: 'active', blocked: null },
+  routines('ops-hourly-host', ['llm-wiki:index', 'llm-wiki:transcribe'], 'active', 'none', { every: '1h' }),
+  routines('ops-nightly-host', ['llm-wiki:index', 'llm-wiki:doctor'], 'active', 'none'),
+  routines('ops-denials', ['llm-wiki:denials'], 'paused', 'none'),
+  routines('ops-hourly', ['llm-wiki:curate'], 'paused', 'any', { every: '1h' }),
+  routines('ops-nightly', ['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'], 'active', 'any', { machine: 'box-a', description: "dream, improve, report — the wiki's nightly sessions" }),
+  routines('ops-morning', ['daily-report'], 'paused', 'any'),
+  routines('ops-synthesize', ['your-synthesis-skill'], 'paused', 'any'),
 ]
+const DETAILS = {
+  'ops-nightly': [
+    'dream drains the distill backlog, resolves contradictions and downgrades stale facts; it is the sole owner of distillation into wiki/.',
+    "improve runs after dream so it reads tonight's distillation.",
+    'wiki-report closes the night; it reads and never writes wiki/.',
+  ],
+}
+// `jobs show` answers the folded record, flat, with the routines as the list.
+const shown = (j) => ({
+  slug: j.slug,
+  job: { v: 1, slug: j.slug, description: j.description, details: DETAILS[j.slug] ?? [], every: j.every, claim: j.claim, machine: j.machine, state: j.state, ...(j.kind === 'routines' ? { routines: j.skill.map((skill) => ({ skill, stages: [], budget: '1h' })) } : { dest: j.dest }) },
+  claim: { kind: j.claim, holder: j.slug === 'ops-nightly' ? { machine: 'box-a', text: 'held by box-a since 2026-10-11T22:00:05Z (any)' } : null },
+})
 const dueRow = (slug, due, reasons, window = null) => ({ job: slug, stage: slug === 'arxiv-cs' ? 'harvest' : 'routine', due, reasons, blocked_by: [], window, due_since: null })
 const DUE = {
   running: [{ job: 'arxiv-cs', stage: 'harvest', machine: 'box-a', since: '2026-10-11T09:00:00Z' }],
@@ -48,7 +64,7 @@ const DUE = {
   parked: [],
   jobs: [
     dueRow('arxiv-cs', true, ['every 6h — last ran 7h ago']),
-    dueRow('ops-hourly-host', true, ['never run']),
+    dueRow('ops-hourly-host', true, ['chain in progress (1 of 2)']),
     dueRow('ops-nightly-host', false, ['never run — waits for the 02:00-06:00 window'], '02:00-06:00'),
     dueRow('ops-nightly', false, ['never run — waits for the 22:00-06:00 window'], '22:00-06:00'),
     ...['ops-denials', 'ops-hourly', 'ops-morning', 'ops-synthesize'].map((slug) => dueRow(slug, false, ['paused'])),
@@ -73,6 +89,13 @@ if (is('machine', 'wikis', 'ls')) {
   out({ agents: (env.FAKE_CLI_AGENTS ?? '').split(',').filter(Boolean).map((name) => ({ name, enabled: true })) })
 } else if (is('jobs', 'ls')) {
   out({ count: JOBS.length, jobs: JOBS, ...echo })
+} else if (is('jobs', 'show')) {
+  const j = JOBS.find((x) => x.slug === verb[2])
+  if (!j) {
+    process.stdout.write(JSON.stringify({ error: 'refused', message: `no job ${verb[2]}` }))
+    process.exit(1)
+  }
+  out({ ...shown(j), ...echo })
 } else if (is('jobs', 'due')) {
   out({ ...DUE, ...echo })
 } else if (is('op', 'since')) {

@@ -14,6 +14,7 @@ import { Busy, NotFound, Unsupported, type Source } from '../data/source.js'
 const SINCE = /^\d{1,3}[hd]$/
 const ID = /^[A-Za-z0-9_-]{1,512}$/
 const DATE = /^\d{4}-\d{2}-\d{2}$/
+const SLUG = /^[a-z0-9][a-z0-9-]{0,127}$/
 
 /** A replay instant: an ISO time inside the replay window, never in the future. */
 function atOf(raw: string | undefined): string | undefined | null {
@@ -132,6 +133,14 @@ export function apiRoutes(source: Source): Hono {
     const b = await source.briefing(c.req.param('key'), id)
     if (!b) return c.json({ error: 'briefing not found' }, 404)
     return c.json(b)
+  })
+
+  api.get('/wikis/:key/jobs/:slug', async (c) => {
+    const slug = c.req.param('slug')
+    if (!SLUG.test(slug)) return c.json({ error: 'bad job slug' }, 400)
+    const job = await source.job(c.req.param('key'), slug)
+    if (!job) return c.json({ error: 'job not found' }, 404)
+    return c.json(job)
   })
 
   api.get('/wikis/:key/page', async (c) => {

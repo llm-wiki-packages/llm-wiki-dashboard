@@ -103,14 +103,16 @@ export interface WikiSummary {
   path: string
   pages: number
   channels: number
-  bundlesEnabled: number
-  bundlesTotal: number
+  /** Declared jobs, and how many of them are active; a paused job is a normal state, not a fault. */
+  jobsActive: number
+  jobsTotal: number
   health: Health
   healthNote?: string
   machines: number
   running: number
   lastRun?: RunSummary
-  nextDue?: { bundle: string; at: string }
+  /** The next job to come due, among those not due now. */
+  nextDue?: { job: string; at: string }
 }
 
 export interface Machine {
@@ -123,7 +125,7 @@ export interface Machine {
   leases: number
 }
 
-/** One watched source, as the UI shows it: the engine's job plus its counts today. */
+/** One watched source, as the UI shows it: the engine's pipeline job plus its counts today. */
 export interface ChannelSummary {
   id: string
   name: string
@@ -183,7 +185,8 @@ export interface NowItem {
 
 export interface PlanItem {
   time: string
-  bundle: string
+  /** The job, or the op a run recorded. */
+  job: string
   text: string
   status: 'done' | 'failed' | 'running' | 'upcoming'
   machine?: string
@@ -279,13 +282,45 @@ export interface FleetView {
   health: { machinesSeen: number; machinesTotal: number; runsOk: number; runsTotal: number; attention: number }
   attention: Attention[]
   plan: PlanItem[]
+  /** Every declared job; empty on a replayed instant, which has no job states. */
+  jobs: JobSummary[]
+}
+
+/** One declared job, as `jobs ls` and `jobs due` answer it. */
+export interface JobSummary {
+  slug: string
+  /** The one-liner. */
+  description: string
+  /** `pipeline` pulls a source through the capture stages; `routines` runs a list of skills in order. */
+  kind: 'pipeline' | 'routines'
+  /** How many machines run it: `any` and `sticky` one at a time, `none` every machine. */
+  claim?: string
+  /** The machine the job is pinned to, when it is. */
+  machine?: string
+  /** The skills it runs, in order: a pipeline's harvest unit, or a routines job's list. */
+  skills: string[]
+  host?: string
+  every?: string
+  window?: string
+  /** `paused`, a chain part-way through and a first run waiting for its window are ordinary states, never faults. */
+  state: ChannelSummary['state']
+  note?: string
+}
+
+/** One job in full, for its detail view: the record's own paragraphs and its routines in order. */
+export interface JobView extends JobSummary {
+  /** Paragraphs for the operator, after the one-line description. */
+  details: string[]
+  routines: Array<{ skill: string; stages: string[] }>
+  /** Who holds its claim now, in the CLI's words. */
+  holder?: string
 }
 
 export interface BriefingsView {
   wiki: WikiSummary
   reports: Briefing[]
-  /** The bundle that writes reports and when it next runs, when the schedule names one. */
-  next?: { bundle: string; at?: string; every?: string }
+  /** The job that writes reports, the one whose routines include the wiki report, and when it next runs. */
+  next?: { job: string; at?: string; every?: string; paused?: boolean }
 }
 
 export interface TraceRow {
