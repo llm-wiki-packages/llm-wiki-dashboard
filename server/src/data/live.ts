@@ -75,7 +75,7 @@ interface DueRow {
   window?: string | null
   due_since?: string | null
 }
-interface PipelineDue {
+interface JobsDue {
   running?: DueRow[]
   pending?: DueRow[]
   review?: DueRow[]
@@ -168,7 +168,7 @@ export function whenOf(p: PageMeta): string {
   return p.harvested?.at ?? p.generated?.at ?? new Date().toISOString()
 }
 
-function stateOfJob(j: Job, due: PipelineDue): ChannelSummary['state'] {
+function stateOfJob(j: Job, due: JobsDue): ChannelSummary['state'] {
   if (j.state === 'paused') return 'paused'
   if (j.blocked && (typeof j.blocked === 'string' || j.blocked.reason)) return 'blocked'
   const slug = j.slug
@@ -177,7 +177,7 @@ function stateOfJob(j: Job, due: PipelineDue): ChannelSummary['state'] {
   return 'idle'
 }
 
-function noteOfJob(j: Job, due: PipelineDue): string | undefined {
+function noteOfJob(j: Job, due: JobsDue): string | undefined {
   if (j.blocked) return typeof j.blocked === 'string' ? j.blocked : j.blocked.reason
   const parked = due.parked?.find((r) => r.job === j.slug)
   if (parked) return parked.reason ?? (parked.not_before ? `retry after ${parked.not_before}` : 'parked')
@@ -227,7 +227,7 @@ function skillsOf(j: Job): string[] {
 }
 
 /** Each active job beside its row in `jobs due`'s per-job list, when it has one. */
-function scheduled(js: JobsLs, d: PipelineDue): Array<{ job: Job; due?: DueRow }> {
+function scheduled(js: JobsLs, d: JobsDue): Array<{ job: Job; due?: DueRow }> {
   const rows = new Map((d.jobs ?? []).map((r) => [r.job, r]))
   return js.jobs.filter((j) => j.state === 'active').map((j) => ({ job: j, due: rows.get(j.slug) }))
 }
@@ -316,9 +316,9 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
   const search = (wiki: string) =>
     memo(`search:${wiki}`, () => soft(cli.run<SearchStatus>('wiki.search.status', { wiki }), {}))
   const due = (wiki: string) =>
-    memo(`due:${wiki}`, () => soft(cli.run<PipelineDue>('wiki.pipeline.due', { wiki }), {}))
+    memo(`due:${wiki}`, () => soft(cli.run<JobsDue>('wiki.jobs.due', { wiki }), {}))
   const jobs = (wiki: string) =>
-    memo(`jobs:${wiki}`, () => soft(cli.run<JobsLs>('wiki.pipeline.jobs.ls', { wiki }), { jobs: [] }))
+    memo(`jobs:${wiki}`, () => soft(cli.run<JobsLs>('wiki.jobs.ls', { wiki }), { jobs: [] }))
   const runs = (wiki: string, since: Since) =>
     memo(`runs:${wiki}:${since}`, () => soft(cli.run<OpSince>('wiki.op.since', { wiki, since }), { runs: [] }))
   const changed = (wiki: string, since: Since) =>
@@ -450,7 +450,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     return [...byArea.values()].sort((a, b) => b.count - a.count)
   }
 
-  function nowOf(d: PipelineDue, channels: ChannelSummary[]): NowItem[] {
+  function nowOf(d: JobsDue, channels: ChannelSummary[]): NowItem[] {
     const name = (slug?: string) => channels.find((c) => c.id === slug)?.name ?? slug ?? 'a channel'
     const rows: NowItem[] = []
     for (const r of d.running ?? [])
@@ -462,7 +462,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     return rows
   }
 
-  function planOf(js: JobsLs, rn: OpSince, d: PipelineDue): PlanItem[] {
+  function planOf(js: JobsLs, rn: OpSince, d: JobsDue): PlanItem[] {
     const today = sinceMidnight()
     const items: PlanItem[] = []
     for (const r of rn.runs) {

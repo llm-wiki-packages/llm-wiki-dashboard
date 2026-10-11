@@ -11,10 +11,10 @@ import { TraceTail } from '../data/trace.js'
 type Listener = (ev: DashboardEvent) => void
 
 /** Which screens a CLI verb's run can change. */
-function viewsTouched(argv: string[]): ViewName[] {
+export function viewsTouched(argv: string[]): ViewName[] {
   const [a, b] = argv
-  if (a === 'pipeline') return ['today', 'new', 'fleet']
-  if (a === 'schedule' || a === 'op') return ['today', 'fleet', 'briefings']
+  if (a === 'jobs' || a === 'tickets' || a === 'denylist') return ['today', 'new', 'fleet']
+  if (a === 'tick' || a === 'op') return ['today', 'fleet', 'briefings']
   if (a === 'page' && b !== 'read' && b !== 'ls') return ['today', 'new', 'briefings']
   if (a === 'git' && b !== 'log' && b !== 'changed') return ['today', 'new']
   return []

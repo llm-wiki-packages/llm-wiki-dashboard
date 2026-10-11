@@ -10,7 +10,7 @@
 //   `FAKE_CLI_SANDBOXES` the enabled sandboxes (default `no-network,read-search`),
 //   `FAKE_CLI_TEMPLATES` the wiki's templates (default `harvest,no-network,read-search`),
 //   `FAKE_CLI_AGENTS` the enabled agents (default none), `FAKE_CLI_WIKI_PATH` the wiki's directory.
-// - `pipeline jobs ls` and `pipeline due` answer the jobs below, echoing the argv
+// - `jobs ls` and `jobs due` answer the jobs below, echoing the argv
 //   and the read floor beside them; `op since` and `git changed` answer empty.
 // - `harness run … --stream` prints the normalized JSON lines, one every
 //   `FAKE_CLI_STREAM_MS` (default 20ms). `FAKE_CLI_PIDFILE` gets its pid, and
@@ -71,9 +71,9 @@ if (is('machine', 'wikis', 'ls')) {
   out({ sandboxes: all.map((name) => ({ name, enabled: on.includes(name) })) })
 } else if (is('agents', 'ls')) {
   out({ agents: (env.FAKE_CLI_AGENTS ?? '').split(',').filter(Boolean).map((name) => ({ name, enabled: true })) })
-} else if (is('pipeline', 'jobs', 'ls')) {
+} else if (is('jobs', 'ls')) {
   out({ count: JOBS.length, jobs: JOBS, ...echo })
-} else if (is('pipeline', 'due')) {
+} else if (is('jobs', 'due')) {
   out({ ...DUE, ...echo })
 } else if (is('op', 'since')) {
   out({ runs: [] })

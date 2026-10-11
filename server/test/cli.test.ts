@@ -25,6 +25,12 @@ describe('VERBS', () => {
     ])
   })
 
+  it('spells jobs and tickets as groups of their own, under the read floor', () => {
+    expect(cli.VERBS['wiki.jobs.due']({ wiki: 'kb' })).toEqual(['wiki', '--read-only', 'kb', 'jobs', 'due', '--json'])
+    expect(cli.VERBS['wiki.jobs.ls']({ wiki: 'kb' })).toEqual(['wiki', '--read-only', 'kb', 'jobs', 'ls', '--json'])
+    expect(cli.VERBS['wiki.tickets.ls']({ wiki: 'kb' })).toEqual(['wiki', '--read-only', 'kb', 'tickets', 'ls', '--json'])
+  })
+
   it('uses filter=since: for op since and git changed', () => {
     expect(cli.VERBS['wiki.op.since']({ wiki: 'kb', since: '7d' })).toContain('filter=since:7d')
     expect(cli.VERBS['wiki.git.changed']({ wiki: 'kb', since: '6h' })).toEqual([
@@ -175,10 +181,10 @@ describe('search argv', () => {
 
 describe('spawnRunner', () => {
   it('runs the verb with the read floor in the environment and parses the JSON answer', async () => {
-    const out = await cli.spawnRunner().run<{ argv: string[]; permissions: string | null }>('wiki.pipeline.due', {
+    const out = await cli.spawnRunner().run<{ argv: string[]; permissions: string | null }>('wiki.jobs.due', {
       wiki: 'kb',
     })
-    expect(out.argv).toEqual(['wiki', '--read-only', 'kb', 'pipeline', 'due', '--json'])
+    expect(out.argv).toEqual(['wiki', '--read-only', 'kb', 'jobs', 'due', '--json'])
     expect(out.permissions).toBe('read')
   })
 
