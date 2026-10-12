@@ -118,8 +118,9 @@ only ever name tokens.
 Node 24 or later, and the llm-wiki ops distribution on the machine
 (`llm-wiki-cli` on `PATH`, or `DASHBOARD_CLI` pointing at it), at
 `min_ops_version` in `llm-wiki-package.json` or later: the build that answers
-`jobs ls`, `jobs due` and `tickets ls` as groups of their own, with the
-reshaped job record (`kind`, `claim`, `machine`, a routines job's skills as a
-list). An older build answers none of those verbs.
+`jobs ls`, `jobs due`, `jobs show` and `tickets ls` as groups of their own,
+with the reshaped job record (`kind`, `claim`, `machine`, and a routines job's
+steps, each a skill, an op or a script, printed by `jobs show`). An older build
+answers none of those verbs.
 
-<!-- TODO: set min_ops_version in llm-wiki-package.json to the version the merger assigns the PR that lands simple10/llm-wiki-plugins#3234's PR 1 (the jobs grammar, after #3233's record reshape). 0.8.0 is provisional: ops 0.6.0 plus one minor each. The manifest's key set is closed, so the TODO lives here. -->
+<!-- TODO: confirm min_ops_version in llm-wiki-package.json once the merger assigns the version batch that consumes simple10/llm-wiki-plugins's pending intents job-record-reshape (#3233), 3231-jobs-grammar (#3238) and 3248-unit-manifest-routine-entries (#3254). Ops is 0.6.0 on main with those intents pending, and a batch is one bump, minor here, so 0.7.0 is expected but not yet assigned. The manifest's key set is closed, so the TODO lives here. -->

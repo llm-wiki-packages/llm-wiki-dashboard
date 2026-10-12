@@ -178,46 +178,62 @@ const unitOf: Record<string, string> = {
   calendar: 'channel-calendar',
 }
 
-/** The seven `ops-` jobs a wiki ships with, this one having resumed all but the synthesis starter. */
+/** The seven `ops-` jobs a wiki ships with, as `jobs show` prints them, this one having resumed all but the synthesis starter. */
 const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines'>> = [
   {
-    slug: 'ops-hourly-host', description: 'index and transcribe, on every machine', kind: 'routines', claim: 'none', every: '1h', state: 'idle',
-    skills: ['llm-wiki:index', 'llm-wiki:transcribe'], routines: [{ skill: 'llm-wiki:index', stages: ['index'] }, { skill: 'llm-wiki:transcribe', stages: ['transcribe'] }],
-    details: ['index brings the search index up to date with what landed; transcribe drains queued media. Both run on every machine and spend no credential or model session.', 'transcribe is skipped where a machine has no engine or no media waiting.'],
+    slug: 'ops-hourly-host', description: 'index and transcribe what this machine holds, every hour', kind: 'routines', claim: 'none', every: '1h', state: 'idle',
+    skills: ['index', 'transcribe'], routines: [{ verb: 'op', name: 'index' }, { verb: 'op', name: 'transcribe' }],
+    details: [
+      'index is the everyday additive pass: it advances from a cursor and deletes only document ids it can name outright, which is what makes it safe on a partial or lagging clone. The full subtractive sweep is ops-nightly-host\'s reindex.',
+      "transcribe drains this machine's dropped files' queued stubs; a transcript it writes lands beside its media and routes the capture on to its next stage.",
+      'Every machine runs this job (claim none) and indexes and transcribes what it holds. It spends no credential and starts no model session.',
+    ],
   },
   {
-    slug: 'ops-nightly-host', description: 'reindex, then doctor, on every machine', kind: 'routines', claim: 'none', every: '1d', window: '02:00-06:00', state: 'idle',
-    skills: ['llm-wiki:index', 'llm-wiki:doctor'], routines: [{ skill: 'llm-wiki:index', stages: ['reindex'] }, { skill: 'llm-wiki:doctor', stages: [] }],
-    details: ['reindex runs the full subtractive pass, then doctor reports on the result.', 'The 02:00-06:00 window keeps the sweep after dream has started at 22:00.'],
+    slug: 'ops-nightly-host', description: 'rebuild the search index from the corpus, then check this wiki on this machine', kind: 'routines', claim: 'none', every: '1d', window: '02:00-06:00', state: 'idle',
+    skills: ['reindex', 'doctor'], routines: [{ verb: 'op', name: 'reindex' }, { verb: 'op', name: 'doctor' }],
+    details: [
+      'reindex rebuilds the index from the corpus: the pass entitled to delete by subtraction. It is cheap when nothing changed, since the engine compares by content hash.',
+      "doctor closes the pass by saying what is wrong with this wiki on this machine, closed into the wiki's op history where a later reader finds it.",
+      "The window keeps the sweep after ops-nightly's 22:00 start rather than before it.",
+    ],
   },
   {
-    slug: 'ops-denials', description: "review this machine's sandbox denials", kind: 'routines', claim: 'none', every: '1d', state: 'idle',
-    skills: ['llm-wiki:denials'], routines: [{ skill: 'llm-wiki:denials', stages: [] }],
-    details: ['The ops log is machine-local, so the review runs on every machine and excludes its own rows.'],
+    slug: 'ops-denials', description: "review this machine's denial rows and propose the fixes", kind: 'routines', claim: 'none', every: '1d', state: 'idle',
+    skills: ['llm-wiki:denials'], routines: [{ verb: 'skill', name: 'llm-wiki:denials' }],
+    details: [
+      "denials reads this machine's denial rows, every refusal a confined run met since the last review. It writes one message per subject to the improve inbox.",
+      'It is its own job, not a step of ops-nightly: the ops log is machine-local, and the review excludes its own slug\'s rows.',
+    ],
   },
   {
-    slug: 'ops-hourly', description: 'curate what landed this hour', kind: 'routines', claim: 'any', every: '1h', state: 'running', note: `llm-wiki:curate on ${THIS_MACHINE}`,
-    skills: ['llm-wiki:curate'], routines: [{ skill: 'llm-wiki:curate', stages: [] }],
-    details: ['curate reviews the pages staged since its last run and accepts or rejects each.'],
+    slug: 'ops-hourly', description: 'curate what the pipeline has landed, every hour', kind: 'routines', claim: 'any', every: '1h', state: 'running', note: `routine on ${THIS_MACHINE}`,
+    skills: ['llm-wiki:curate'], routines: [{ verb: 'skill', name: 'llm-wiki:curate' }],
+    details: ['curate works on what the pipeline pass already landed; no job here starts a worker of its own.', 'A session that spends model time, so it ships paused: resume it to opt in. With nothing staged for curation the job is not due.'],
   },
   {
-    slug: 'ops-nightly', description: "dream, improve, report — the wiki's nightly sessions", kind: 'routines', claim: 'any', every: '1d', window: '22:00-06:00', state: 'idle', note: 'chain in progress (2 of 3)',
-    skills: ['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'], routines: [{ skill: 'llm-wiki:dream', stages: [] }, { skill: 'llm-wiki:improve', stages: [] }, { skill: 'llm-wiki:wiki-report', stages: [] }],
+    slug: 'ops-nightly', description: "dream, improve, report: the wiki's nightly sessions", kind: 'routines', claim: 'any', every: '1d', window: '22:00-06:00', state: 'idle', note: 'chain in progress (2 of 3)',
+    skills: ['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'],
+    routines: [{ verb: 'skill', name: 'llm-wiki:dream' }, { verb: 'skill', name: 'llm-wiki:improve' }, { verb: 'skill', name: 'llm-wiki:wiki-report' }],
     details: [
       'dream drains the distill backlog, resolves contradictions and downgrades stale facts; it is the sole owner of distillation into wiki/.',
       "improve runs after dream so it reads tonight's distillation.",
       'wiki-report closes the night; it reads and never writes wiki/.',
+      'These are model sessions, so the job ships paused: resume it to opt in.',
     ],
   },
   {
-    slug: 'ops-morning', description: 'the morning briefing', kind: 'routines', claim: 'any', every: '1d', state: 'idle',
-    skills: ['daily-report'], routines: [{ skill: 'daily-report', stages: [] }],
-    details: ["Waits for dream and wiki-report within the last 24 hours, so the briefing reads the night's work.", 'A starter: copy this job to a new slug, point it at your skill, resume it.'],
+    slug: 'ops-morning', description: "the morning briefing, once the night's work has landed", kind: 'routines', claim: 'any', every: '1d', state: 'idle',
+    skills: ['daily-report'], routines: [{ verb: 'skill', name: 'daily-report' }],
+    details: [
+      "The briefing runs the wiki's own daily-report skill once the night's dream has landed and the day's digest is written.",
+      'To change what it runs, copy this job to a new slug, point its routine at your skill and resume it. A slug is permanent, so a starter is copied, never renamed.',
+    ],
   },
   {
-    slug: 'ops-synthesize', description: 'your synthesis, each evening', kind: 'routines', claim: 'any', every: '1d', window: '18:00-21:00', state: 'paused',
-    skills: ['your-synthesis-skill'], routines: [{ skill: 'your-synthesis-skill', stages: [] }],
-    details: ['A starter: copy this job to a new slug, point it at your skill, resume it.'],
+    slug: 'ops-synthesize', description: "a starter for the wiki's own synthesis skill", kind: 'routines', claim: 'any', every: '1d', window: '18:00-21:00', state: 'paused',
+    skills: ['your-synthesis-skill'], routines: [{ verb: 'skill', name: 'your-synthesis-skill' }],
+    details: ['A starter, off until you finish it: write the wiki skill that does the synthesis, then copy this job to a new slug, point its routine at your skill and resume it.'],
   },
 ]
 
@@ -458,7 +474,7 @@ export function fixturesSource(): Source {
   })
   return {
     kind: 'fixtures',
-    opsVersion: async () => '0.8.0',
+    opsVersion: async () => '0.7.0',
     roots: async (): Promise<WikiRoot[]> => wikiList.map(({ key, name, path }) => ({ key, name, path })),
     wikis: async () => wikiList,
     replayDays: async (key): Promise<ReplayDays> => {
@@ -533,8 +549,9 @@ export function fixturesSource(): Source {
         ...j,
         details: ops?.details ?? [],
         routines: ops?.routines ?? [],
-        // A lease is held while a run or a chain is under way, and a `none` job takes none.
+        // A lease is held while a run or a chain is under way; a `none` job takes none, and says how each machine last ran it.
         holder: j.claim !== 'none' && (j.state === 'running' || j.note?.startsWith('chain')) ? `held by ${j.machine ?? THIS_MACHINE} since ${at(21, 2)} (any)` : undefined,
+        machines: j.claim === 'none' ? machines.map((m) => ({ machine: m.name, lastRun: at(j.window ? 2 : 20, 5), outcome: 'ok' })) : undefined,
       }
     },
     briefing: async (key, id) => {

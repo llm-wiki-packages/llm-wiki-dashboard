@@ -1,8 +1,9 @@
 // What the live source makes of `jobs ls`, `jobs due` and `jobs show`, with
 // test/fake-cli.mjs standing in for llm-wiki-cli: the next job to come due,
 // the counts, the day plan's scheduled rows, the briefings' next run, and the
-// jobs grouped by kind with their states. The clock is held at noon, so the
-// windows the fake names fall either side.
+// jobs grouped by kind with their states. The fake prints the shapes plugins
+// main prints. The clock is held at noon, so the windows the fake names fall
+// either side.
 
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -44,27 +45,29 @@ afterAll(() => {
 })
 
 describe('jobs and their dueness', () => {
-  it('counts the active jobs and names the next to come due: the earliest window among those not due now', async () => {
+  it('counts the active jobs and names the next to come due: the earliest window opening or period end among those neither due nor running', async () => {
     const [w] = await source.wikis()
-    expect(w).toMatchObject({ jobsActive: 4, jobsTotal: 8, channels: 1 })
-    // ops-nightly-host's 02:00 window has passed today, so ops-nightly's 22:00 comes first.
-    expect(w?.nextDue).toEqual({ job: 'ops-nightly', at: todayAt(22) })
+    expect(w).toMatchObject({ jobsActive: 5, jobsTotal: 9, channels: 2 })
+    // rss-news last ran at 09:00 every 6h; ops-nightly's window opens at 22:00, ops-nightly-host's 02:00 has passed today.
+    expect(w?.nextDue).toEqual({ job: 'rss-news', at: todayAt(15) })
   })
 
-  it('plans the jobs due now and the windows still to open today, and no paused or running job twice', async () => {
+  it('plans the jobs due now and those coming due later today, and no paused or running job twice', async () => {
     const v = await source.fleet('kb')
     const rows = v.plan.map((p) => [p.job, p.status, p.time])
-    expect(rows).toContainEqual(['arxiv-cs', 'running', '2026-10-11T09:00:00Z'])
+    // `jobs due` gives a running ticket's age, not its start.
+    expect(rows).toContainEqual(['arxiv-cs', 'running', new Date(Date.parse(todayAt(12)) - 600_000).toISOString()])
     expect(rows).toContainEqual(['ops-hourly-host', 'upcoming', ''])
+    expect(rows).toContainEqual(['rss-news', 'upcoming', todayAt(15)])
     expect(rows).toContainEqual(['ops-nightly', 'upcoming', todayAt(22)])
     expect(v.plan.filter((p) => p.job === 'arxiv-cs')).toHaveLength(1)
     expect(v.plan.map((p) => p.job)).not.toContain('ops-nightly-host')
     expect(v.plan.map((p) => p.job)).not.toContain('ops-denials')
-    // A chain part-way through says how far it has got.
-    expect(v.plan.find((p) => p.job === 'ops-hourly-host')?.text).toBe('ops-hourly-host · llm-wiki:index, llm-wiki:transcribe · chain in progress (1 of 2)')
+    // A chain part-way through says how far it has got; its steps are the record's, an op by its name.
+    expect(v.plan.find((p) => p.job === 'ops-hourly-host')?.text).toBe('ops-hourly-host · index, transcribe · chain in progress (1 of 2)')
   })
 
-  it('gives the briefings the job whose routines include the wiki report, and when its window opens', async () => {
+  it('gives the briefings the job whose routines include the wiki report, though jobs ls names only its first step, and when its window opens', async () => {
     const v = await source.briefings('kb')
     expect(v.next).toEqual({ job: 'ops-nightly', at: todayAt(22), every: '1d' })
   })
@@ -77,10 +80,11 @@ describe('jobs and their dueness', () => {
 })
 
 describe('the reshaped record', () => {
-  it('lists every job grouped by kind, badged with its claim and pin, a routines job with its skills in order', async () => {
+  it('lists every job grouped by kind, badged with its claim and pin, a routines job with its steps in order', async () => {
     const v = await source.fleet('kb')
     expect(v.jobs.map((j) => [j.kind, j.slug])).toEqual([
       ['pipeline', 'arxiv-cs'],
+      ['pipeline', 'rss-news'],
       ['routines', 'ops-denials'],
       ['routines', 'ops-hourly'],
       ['routines', 'ops-hourly-host'],
@@ -95,7 +99,8 @@ describe('the reshaped record', () => {
       skills: ['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'],
       window: '22:00-06:00',
     })
-    expect(v.jobs.find((j) => j.slug === 'arxiv-cs')).toMatchObject({ claim: 'any', skills: ['arxiv'], host: 'arxiv.org' })
+    expect(v.jobs.find((j) => j.slug === 'arxiv-cs')).toMatchObject({ claim: 'any', skills: ['arxiv'], host: 'arxiv.org', state: 'running', note: 'harvest on box-a' })
+    // A routines job's target is empty: no host.
     expect(v.jobs.find((j) => j.slug === 'ops-hourly-host')?.host).toBeUndefined()
   })
 
@@ -114,16 +119,27 @@ describe('the reshaped record', () => {
 
   it('draws only pipeline jobs as channels: a routines job watches no source', async () => {
     const v = await source.fleet('kb')
-    expect(v.channels.filter((c) => c.watched).map((c) => c.id)).toEqual(['arxiv-cs'])
+    expect(v.channels.filter((c) => c.watched).map((c) => c.id)).toEqual(['arxiv-cs', 'rss-news'])
   })
 
-  it("opens a job's detail from jobs show: its details, its routines in order and who holds it", async () => {
+  it("opens a job's detail from jobs show: its details, its steps in order and who holds it", async () => {
     const j = await source.job('kb', 'ops-nightly')
     expect(j?.details).toHaveLength(3)
     expect(j?.details[0]).toMatch(/^dream drains the distill backlog/)
-    expect(j?.routines.map((r) => r.skill)).toEqual(['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'])
-    expect(j?.holder).toBe('held by box-a since 2026-10-11T22:00:05Z (any)')
+    expect(j?.routines).toEqual([
+      { verb: 'skill', name: 'llm-wiki:dream' },
+      { verb: 'skill', name: 'llm-wiki:improve' },
+      { verb: 'skill', name: 'llm-wiki:wiki-report' },
+    ])
     expect(j?.kind).toBe('routines')
+    expect((await source.job('kb', 'arxiv-cs'))?.holder).toBe('held by box-a since 2026-10-12T11:50:00Z (any)')
     expect(await source.job('kb', 'no-such-job')).toBeNull()
+  })
+
+  it('names a host op as an op, and a job every machine runs by each machine\'s last run', async () => {
+    const j = await source.job('kb', 'ops-hourly-host')
+    expect(j?.routines).toEqual([{ verb: 'op', name: 'index' }, { verb: 'op', name: 'transcribe' }])
+    expect(j?.holder).toBeUndefined()
+    expect(j?.machines).toEqual([{ machine: 'box-a', lastRun: todayAt(11).replace('.000Z', 'Z'), outcome: 'ok' }])
   })
 })

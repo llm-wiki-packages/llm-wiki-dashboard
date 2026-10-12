@@ -76,8 +76,11 @@ describe('jobs', () => {
   it("opens a job's details and routines, 404s an unknown one and refuses a slug that is not one", async () => {
     const res = await app.request('/api/wikis/acme-sales/jobs/ops-nightly', { headers })
     const job = (await res.json()) as JobView
-    expect(job.details).toHaveLength(3)
-    expect(job.routines.map((r) => r.skill)).toEqual(['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'])
+    expect(job.details).toHaveLength(4)
+    expect(job.routines.map((r) => `${r.verb} ${r.name}`)).toEqual(['skill llm-wiki:dream', 'skill llm-wiki:improve', 'skill llm-wiki:wiki-report'])
+    const host = (await (await app.request('/api/wikis/acme-sales/jobs/ops-hourly-host', { headers })).json()) as JobView
+    expect(host.routines.map((r) => r.verb)).toEqual(['op', 'op'])
+    expect(host.machines?.length).toBeGreaterThan(0)
     expect((await app.request('/api/wikis/acme-sales/jobs/nope', { headers })).status).toBe(404)
     expect((await app.request('/api/wikis/acme-sales/jobs/--all', { headers })).status).toBe(400)
   })

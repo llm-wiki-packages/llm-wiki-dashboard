@@ -286,7 +286,7 @@ export interface FleetView {
   jobs: JobSummary[]
 }
 
-/** One declared job, as `jobs ls` and `jobs due` answer it. */
+/** One declared job, as `jobs ls`, `jobs due` and `jobs show` answer it. */
 export interface JobSummary {
   slug: string
   /** The one-liner. */
@@ -297,7 +297,7 @@ export interface JobSummary {
   claim?: string
   /** The machine the job is pinned to, when it is. */
   machine?: string
-  /** The skills it runs, in order: a pipeline's harvest unit, or a routines job's list. */
+  /** What it runs, in order: a pipeline's harvest unit, or each routine's skill, op or script. */
   skills: string[]
   host?: string
   every?: string
@@ -311,9 +311,18 @@ export interface JobSummary {
 export interface JobView extends JobSummary {
   /** Paragraphs for the operator, after the one-line description. */
   details: string[]
-  routines: Array<{ skill: string; stages: string[] }>
+  routines: Routine[]
   /** Who holds its claim now, in the CLI's words. */
   holder?: string
+  /** A `claim: none` job runs on every machine: each one's last run and how it went. */
+  machines?: Array<{ machine: string; lastRun?: string; outcome?: string }>
+}
+
+/** One step of a routines job: a skill session, a host op, or a unit's script, with what it is handed. */
+export interface Routine {
+  verb: 'skill' | 'op' | 'run'
+  name: string
+  args?: string[]
 }
 
 export interface BriefingsView {

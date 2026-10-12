@@ -1,19 +1,23 @@
 // Every declared job, grouped by kind: a pipeline pulls a source through the
-// capture stages, a routines job runs skills in order. Each row says how many
+// capture stages, a routines job runs its steps in order. Each row says how many
 // machines run it, where it is pinned, and what it is doing; opening one reads
 // the record's own paragraphs. Paused, a chain part-way through and a first
 // run waiting for its window are states, said quietly, never warnings.
 
 import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
-import type { JobSummary } from '@dashboard/shared/types'
+import type { JobSummary, JobView, Routine } from '@dashboard/shared/types'
 import { useJob } from '@/lib/api'
+import { timeAgo } from '@/lib/format'
 import { Card, ErrorNote, Pill, SectionLabel, Skeleton, cn } from './ui'
 
 const GROUPS: Array<{ kind: JobSummary['kind']; title: string; sub: string }> = [
   { kind: 'pipeline', title: 'Pipelines', sub: 'pull a source through capture' },
-  { kind: 'routines', title: 'Routines', sub: 'run skills in order' },
+  { kind: 'routines', title: 'Routines', sub: 'run their steps in order' },
 ]
+
+/** What a routine step is, beside its name: a skill is a session, an op runs on the host, a run is a unit's script. */
+const VERB: Record<Routine['verb'], string> = { skill: 'session', op: 'host op', run: 'script' }
 
 /** How many machines run a job, by its claim. */
 const CLAIM: Record<string, string> = { any: 'one machine', sticky: 'one machine, kept', none: 'every machine' }
@@ -95,15 +99,32 @@ function JobDetail({ wikiKey, slug }: { wikiKey: string; slug: string }) {
       {j.routines.length > 0 && (
         <ol className="flex flex-col gap-0.5 text-ink-2">
           {j.routines.map((r, i) => (
-            <li key={`${r.skill}-${i}`}>
-              <span className="tabular-nums text-ink-3">{i + 1}.</span> <code className="text-ink">{r.skill}</code>
-              {r.stages.length > 0 && <span> · {r.stages.join(', ')}</span>}
+            <li key={`${r.verb}-${r.name}-${i}`}>
+              <span className="tabular-nums text-ink-3">{i + 1}.</span> <code className="text-ink">{r.name}</code>
+              <span> · {VERB[r.verb]}</span>
+              {r.args?.length ? <span> · <code>{r.args.join(' ')}</code></span> : null}
             </li>
           ))}
         </ol>
       )}
       {j.holder && <div className="text-xs text-ink-2">{j.holder}</div>}
-      {!j.details.length && !j.routines.length && !j.holder && <div className="text-xs text-ink-2">The record says nothing more.</div>}
+      <Machines rows={j.machines} />
+      {!j.details.length && !j.routines.length && !j.holder && !j.machines?.length && <div className="text-xs text-ink-2">The record says nothing more.</div>}
+    </div>
+  )
+}
+
+/** A `claim: none` job runs on every machine, so each says when it last ran it. */
+function Machines({ rows }: { rows: JobView['machines'] }) {
+  if (!rows?.length) return null
+  return (
+    <div className="text-xs text-ink-2">
+      {rows.map((m, i) => (
+        <span key={m.machine}>
+          {i > 0 && ' · '}
+          {m.machine} {m.lastRun ? <>last ran {timeAgo(m.lastRun)}{m.outcome && m.outcome !== 'ok' && <span className="text-warn-ink"> ({m.outcome})</span>}</> : 'has not run it'}
+        </span>
+      ))}
     </div>
   )
 }
