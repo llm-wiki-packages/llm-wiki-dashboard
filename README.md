@@ -126,4 +126,4 @@ or is not due on this machine, when it next is, and the tickets running here
 own. An older build refuses `--verbose`, and one before 0.7.0 answers none of
 those verbs.
 
-<!-- TODO: confirm min_ops_version in llm-wiki-package.json once the merger assigns the version batch that consumes simple10/llm-wiki-plugins's pending intent 3295-jobs-verdict (#3301). Ops is 0.7.0 on main and the intent is minor, so 0.8.0 is expected but not yet assigned. The manifest's key set is closed, so the TODO lives here. -->
+<!-- TODO: confirm min_ops_version in llm-wiki-package.json once the merger assigns the version batch that consumes simple10/llm-wiki-plugins's pending intents 3295-jobs-verdict (#3301, minor), 3296-config-env-scrub and 3300-scrub-remaining (both patch). Ops is 0.7.0 on main and a batch is one bump, the largest, so 0.8.0 is expected but not yet assigned. The manifest's key set is closed, so the TODO lives here. -->
