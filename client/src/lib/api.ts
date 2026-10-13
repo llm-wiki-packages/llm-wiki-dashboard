@@ -10,6 +10,7 @@ import type {
   BriefingsView,
   Facets,
   FleetView,
+  JobView,
   LearnedView,
   NewView,
   PageView,
@@ -82,6 +83,11 @@ export const q = {
       queryKey: ['wiki', key, 'briefings'],
       queryFn: () => get<BriefingsView>(`/wikis/${key}/briefings`),
     }),
+  job: (key: string, slug: string) =>
+    queryOptions({
+      queryKey: ['wiki', key, 'fleet', 'job', slug],
+      queryFn: () => get<JobView>(`/wikis/${key}/jobs/${encodeURIComponent(slug)}`),
+    }),
   page: (key: string, rel: string) =>
     queryOptions({
       queryKey: ['wiki', key, 'page', rel],
@@ -129,6 +135,8 @@ export const useFleet = (key: string) => useQuery(q.fleet(key, useReplayAt()))
 export const useBriefings = (key: string) => useQuery(q.briefings(key))
 export const useBriefing = (key: string, id: string | undefined) =>
   useQuery({ ...q.briefing(key, id ?? ''), enabled: Boolean(id) })
+export const useJob = (key: string, slug: string | undefined) =>
+  useQuery({ ...q.job(key, slug ?? ''), enabled: Boolean(slug) })
 export const usePage = (key: string, rel: string | undefined) =>
   useQuery({ ...q.page(key, rel ?? ''), enabled: Boolean(rel) })
 export const useResolve = (key: string, link: string | undefined) =>

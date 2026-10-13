@@ -13,7 +13,7 @@ const STARTERS = [
     title: 'A mailbox',
     pitch: 'Client threads become pages: who asked what, and by when.',
     skill: 'channel-gmail',
-    add: 'pipeline jobs add work-mail slug=work-mail skill=channel-gmail options.mailbox=you@example.com every=1d',
+    add: 'jobs add work-mail slug=work-mail skill=channel-gmail options.mailbox=you@example.com every=1d',
   },
   {
     id: 'notion',
@@ -21,7 +21,7 @@ const STARTERS = [
     title: 'A Notion workspace',
     pitch: 'Tasks and records, kept current as they change.',
     skill: 'channel-notion-tasks',
-    add: 'pipeline jobs add notion-tasks slug=notion-tasks skill=channel-notion-tasks options.workspace=YOUR-WORKSPACE every=1d',
+    add: 'jobs add notion-tasks slug=notion-tasks skill=channel-notion-tasks options.workspace=YOUR-WORKSPACE every=1d',
   },
   {
     id: 'youtube',
@@ -29,7 +29,7 @@ const STARTERS = [
     title: 'A video worth keeping',
     pitch: 'Transcribed, summarized, and filed under the areas it touches.',
     skill: 'channel-youtube',
-    add: "pipeline jobs add 'https://www.youtube.com/watch?v=VIDEO-ID' slug=my-video skill=channel-youtube",
+    add: "jobs add 'https://www.youtube.com/watch?v=VIDEO-ID' slug=my-video skill=channel-youtube",
   },
 ] as const
 

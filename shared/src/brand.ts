@@ -16,7 +16,7 @@ export const brand = {
   /** What the UI calls a machine that does work for a wiki. */
   machineNoun: 'machine',
   machineNounPlural: 'machines',
-  /** The label on the report the morning bundle writes. */
+  /** The label on the report the wiki's report job writes. */
   briefingNoun: 'briefing',
   briefingNounPlural: 'briefings',
 } as const

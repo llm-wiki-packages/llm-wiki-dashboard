@@ -11,6 +11,7 @@ import type {
   DataSource,
   FleetView,
   Facets,
+  JobView,
   LearnedView,
   NewView,
   PageView,
@@ -46,6 +47,8 @@ export interface Source {
   replayDay(key: string, date: string): Promise<ReplayDay>
   briefings(key: string): Promise<BriefingsView>
   briefing(key: string, id: string): Promise<Briefing | null>
+  /** One job in full, by slug: its state, its details and its routines. */
+  job(key: string, slug: string): Promise<JobView | null>
   /** A page by its wiki-relative path, for the reader. */
   page(key: string, rel: string): Promise<PageView | null>
   /** Where a `[[wikilink]]` points, by the page's file stem, the way an editor resolves it. */

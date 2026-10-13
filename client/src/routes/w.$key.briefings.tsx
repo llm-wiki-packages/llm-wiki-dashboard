@@ -2,6 +2,7 @@
 // rendered as an article.
 
 import { createFileRoute } from '@tanstack/react-router'
+import type { BriefingsView } from '@dashboard/shared/types'
 import { useBriefing, useBriefings, useConfig } from '@/lib/api'
 import { clock, dayLabel, timeAgo } from '@/lib/format'
 import { Card, ErrorNote, Empty, SectionLabel, Skeleton, cn } from '@/components/ui'
@@ -16,6 +17,13 @@ export const Route = createFileRoute('/w/$key/briefings')({
 
 /** `1d` reads as "daily", `1h` as "hourly", anything else as "every <period>". */
 const cadence = (every: string) => ({ '1d': 'daily', '1h': 'hourly', '7d': 'weekly' })[every] ?? `every ${every}`
+
+/** Which job writes the reports and when. A paused one is a state a fresh wiki ships in, said with the command that resumes it. */
+function whoWrites(next: NonNullable<BriefingsView['next']>, key: string, cli?: string): string {
+  if (next.paused)
+    return `The ${next.job} job writes them${next.every ? ` ${cadence(next.every)}` : ''} once it is resumed${cli ? `: ${cli} wiki ${key} jobs resume ${next.job}` : ''}.`
+  return `The ${next.job} job writes the first one${next.at ? `, ${timeAgo(next.at)} (${clock(next.at)})` : next.every ? `; it runs ${cadence(next.every)}` : ''}.`
+}
 
 function Briefings() {
   const { key } = Route.useParams()
@@ -41,7 +49,7 @@ function Briefings() {
             title={`No ${noun[1]} yet`}
             body={
               list.data.next
-                ? `The ${list.data.next.bundle} run writes the first one${list.data.next.at ? `, ${timeAgo(list.data.next.at)} (${clock(list.data.next.at)})` : list.data.next.every ? `; it runs ${cadence(list.data.next.every)}` : ''}. Each ${noun[0]} says what changed, what needs you, and links every page it cites.`
+                ? `${whoWrites(list.data.next, key, cfg.data?.cli)} Each ${noun[0]} says what changed, what needs you, and links every page it cites.`
                 : `Nothing on the schedule writes one yet. A daily ${noun[0]} says what changed, what needs you, and links every page it cites.`
             }
           />

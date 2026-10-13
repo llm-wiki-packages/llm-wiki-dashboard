@@ -116,4 +116,11 @@ only ever name tokens.
 ## Requirements
 
 Node 24 or later, and the llm-wiki ops distribution on the machine
-(`llm-wiki-cli` on `PATH`, or `DASHBOARD_CLI` pointing at it).
+(`llm-wiki-cli` on `PATH`, or `DASHBOARD_CLI` pointing at it), at
+`min_ops_version` in `llm-wiki-package.json` or later: the build that answers
+`jobs ls`, `jobs due`, `jobs show` and `tickets ls` as groups of their own,
+with the reshaped job record (`kind`, `claim`, `machine`, and a routines job's
+steps, each a skill, an op or a script), and each job's due verdict: why it is
+or is not due on this machine, when it next is, and the tickets running here
+(`jobs ls --verbose` and `jobs show`). The dashboard derives no dueness of its
+own. An older build answers none of those verbs.

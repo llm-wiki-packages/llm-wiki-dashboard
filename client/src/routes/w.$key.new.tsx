@@ -70,7 +70,7 @@ function WhatsNew() {
       {v.areas.length === 0 ? (
         <Empty
           title={search.since === '7d' ? 'Nothing new this week' : 'Nothing new yet today'}
-          body={`When a watch pulls something, it lands here grouped by area: new pages, updated ones, and what was distilled.${v.wiki.nextDue ? ` The next run is ${v.wiki.nextDue.bundle}, ${timeAgo(v.wiki.nextDue.at)}.` : ''}${search.since === '7d' ? '' : ' Or widen to this week.'}`}
+          body={`When a watch pulls something, it lands here grouped by area: new pages, updated ones, and what was distilled.${v.wiki.nextDue ? ` The next run is ${v.wiki.nextDue.job}, ${timeAgo(v.wiki.nextDue.at)}.` : ''}${search.since === '7d' ? '' : ' Or widen to this week.'}`}
         />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">

@@ -11,7 +11,7 @@ a prospect watching a demo. It must be visually convincing to the second.
 1. **Home (machine view)** — every wiki registered on this machine, and the
    machines joined to each wiki. This machine is the vantage point.
 2. **Wiki view** — one wiki's activity: sources → pipeline stages → wiki,
-   bundles running on a timeline, and drill-down to job → ticket → logs.
+   jobs running on a timeline, and drill-down to job → ticket → logs.
 
 Home ➜ click a wiki ➜ Wiki view ➜ click a job/edge ➜ tickets ➜ click a
 ticket ➜ record + logs (side panel, not a new page).
@@ -25,11 +25,11 @@ This machine is highlighted. Live work pulses along the wiki↔machine edge.
 Per wiki node:
 - name, key                                (`machine wikis ls`)
 - pages in corpus (e.g. 103)               (`search status`.corpus_files)
-- sources watched (jobs count)             (`pipeline jobs ls`.count)
-- bundles enabled / total (9/10)           (`status`.schedules)
+- sources watched (pipeline jobs)          (`jobs ls`, kind pipeline)
+- jobs active / total (14/15)              (`jobs ls` states)
 - search state: engine | grep fallback     (`search status`.serving)
 - last run: op, outcome, when              (`op since`.runs[0])
-- next due                                 (`schedule ls`)
+- next due                                 (`jobs ls --verbose` verdict.next_at)
 - health dot: ok / attention / failing     (`doctor`)
 - git: unpushed, behind, dirty             (`status`.git)
 
@@ -63,11 +63,11 @@ running · pending · review · parked (amber) · blocked (amber, with reason)
 
 ### Second: activity strip
 Horizontal time axis (24h default, 7d option). One swimlane per **machine**
-joined to this wiki. Bars are bundle runs: name (hourly, nightly, morning,
-improve, maintenance, denials, wiki-report, nightly-index), duration,
-outcome color. Running bars pulse at the right edge. Bundle windows
-(e.g. nightly 22:00–06:00) are faint bands behind the lane.
-Data: `op since`, `schedule ls`, `pipeline tickets ls`.
+joined to this wiki. Bars are job runs: name (ops-hourly, ops-hourly-host,
+ops-nightly, ops-nightly-host, ops-morning, ops-denials, ops-synthesize, and
+the watches), duration, outcome color. Running bars pulse at the right edge.
+Job windows (e.g. ops-nightly 22:00–06:00) are faint bands behind the lane.
+Data: `op since`, `jobs due`, `tickets ls`.
 
 ### Side panel drill-down (slides in from the right)
 - Job card: target, source host, dest, every, skill, state holders per
@@ -102,6 +102,9 @@ Data: `op since`, `schedule ls`, `pipeline tickets ls`.
   the dev box today; see real-shapes below).
 
 ## Real JSON shapes (from this machine, 2026-09-27, wiki `knowledgebase`)
+As captured then. Since retired: `schedule ls` and `status.schedules` (the
+bundles became jobs), and the `pipeline` and `schedule` groups (now `jobs`,
+`tickets`, `denylist` and `tick`).
 ```json
 // machine wikis ls
 {"count":1,"wikis":[{"key":"knowledgebase","name":"llm-wiki-knowledgebase","path":"/Users/joe/Development/ai-tools/llm-wiki-knowledgebase"}]}
@@ -122,6 +125,35 @@ Data: `op since`, `schedule ls`, `pipeline tickets ls`.
 {"argv":["doctor","--statusline","--json"],"at":"2026-09-27T20:04:11.116Z","elapsed_s":0,"kind":"dispatch","rc":130,"stderr_tail":"…"}
 // search status (trimmed)
 {"serving":"grep","engine_configured":true,"realm_ready":false,"realm_reason":"unreachable","corpus_files":103}
+```
+
+## Jobs shapes (simple10/llm-wiki-plugins#3301, 2026-10-13, a fresh `knowledgebase` wiki)
+```json
+// jobs ls --verbose (one row, stages trimmed to the clock stage): the bare row names a routines job's first step only;
+// --verbose adds the verdict (dueness.row), the tickets running here, the window and the routines
+{"slug":"ops-nightly-host","description":"…","target":"","dest":null,"route":null,"every":"1d","skill":"llm-wiki:reindex",
+ "stages":[{"stage":"routine","machine":null,"budget":"1h","skipped":false,"holder":null,"stalled":false,"ok_started":null,"ran_on":[],"failing":[],"attempts":0}],
+ "state":"active","kind":"routines","claim":"none","machine":null,"due":false,"blocked":null,
+ "verdict":{"due":false,"kind":"window","reasons":["never run","never run — waits for the 02:00-06:00 window"],"blocked_by":[],
+  "next_at":"2026-10-13T02:00:00Z","due_since":null,"last_ok":null,"anchor":null,"chain":null},
+ "running":[],"window":"02:00-06:00","routines":[{"verb":"op","name":"reindex","args":[]},{"verb":"op","name":"doctor","args":[]}]}
+// verdict.kind: null when due, else the first rung that said no: off, paused, once, failed-cap, period, window, requires, no-work.
+// next_at is null when due and for off, paused, once, requires and no-work; due_since is set when due and for requires and no-work.
+{"due":false,"kind":"requires","reasons":["never run"],"blocked_by":["requires dream within 24h — no dream run found; job ops-nightly runs dream"],
+ "next_at":null,"due_since":"2026-10-13T01:02:15Z","last_ok":null,"anchor":null,"chain":null}
+// running (jobs ls --verbose, jobs show): this machine's tickets of the job; step on a routine ticket, index from 0
+{"id":"…","stage":"routine","machine":"box-a","since":"2026-10-12T23:02:11Z","step":{"index":1,"name":"llm-wiki:improve"}}
+// jobs due: the queues are this machine's; a running row names its machine, start and step; `jobs` lists only the stages due here now
+{"running":[{"id":"…","job":"ops-nightly","stage":"routine","priority":"normal","age_s":600,"runs":1,"runtime_s":0,"last":null,
+  "machine":"box-a","started_at":"2026-10-12T23:02:11Z","step":{"index":1,"name":"llm-wiki:improve"}}],"pending":[],"review":[],"parked":[],
+ "jobs":[{"slug":"ops-nightly","stage":"routine","due_since":"2026-10-12T22:00:00Z","held_by":null,"reasons":["never run","inside preferred window 22:00-06:00"],"blocked_by":[],"last_run":null}],
+ "caps":{"routine":{"cap":1,"active":0}},"handoffs":{"outgoing":[],"incoming":[],"shipping":[],"problems":[]}}
+// jobs show ops-hourly-host (trimmed): the record, the verdict and the tickets here; a step is one of skill, op or run; claim none lists machines
+{"slug":"ops-hourly-host","job":{"slug":"ops-hourly-host","details":["index is the everyday additive pass: …"],"every":"1h","window":null,
+ "routines":[{"budget":"1h","op":"index"},{"budget":"1h","op":"transcribe"}]},"due":false,"claim":{"kind":"none","machines":[]},
+ "verdict":{"due":false,"kind":"no-work","…":"…"},"running":[]}
+// jobs show <unknown>: rc 2
+{"error":"no job 'nope' — `jobs ls` names every job this wiki declares"}
 ```
 
 ## Illustrative dataset for the mockups (invented, plausible)

@@ -28,6 +28,8 @@ export interface Args {
   sha?: string
   /** A session id or op name, for `op show`. */
   target?: string
+  /** A job's slug, for `jobs show`. */
+  slug?: string
   /** A skill name for `harness run skill=`, like `llm-wiki:search`. */
   skill?: string
   /** An enabled agent's name, for `harness run agent=`. */
@@ -51,6 +53,7 @@ const SINCE = /^\d{1,3}[hd]$/
 const DIR = /^[a-z][a-z0-9_-]{0,63}$/
 const SHA = /^[0-9a-f]{7,40}$/
 const TARGET = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
+const SLUG = /^[a-z0-9][a-z0-9-]{0,127}$/
 const REL = /^(?!\.)(?!.*\.\.)(?!\/)[A-Za-z0-9._\-/ ()&$'!,+]{1,400}\.md$/
 
 function key(v: string | undefined): string {
@@ -131,6 +134,11 @@ export function question(v: string | undefined): string {
   return t
 }
 
+function jobSlug(v: string | undefined): string {
+  if (!v || !SLUG.test(v)) throw new CliError(`bad job slug: ${String(v)}`, 'args')
+  return v
+}
+
 function rel(v: string | undefined): string {
   if (!v || !REL.test(v)) throw new CliError(`bad page path: ${String(v)}`, 'args')
   return v
@@ -145,10 +153,11 @@ export const VERBS = {
   'machine.runner.ls': () => ['machine', 'runner', 'ls', '--json'],
   'wiki.status': (a: Args) => wiki(a, 'status', '--peers'),
   'wiki.search.status': (a: Args) => wiki(a, 'search', 'status'),
-  'wiki.schedule.ls': (a: Args) => wiki(a, 'schedule', 'ls'),
-  'wiki.pipeline.due': (a: Args) => wiki(a, 'pipeline', 'due'),
-  'wiki.pipeline.jobs.ls': (a: Args) => wiki(a, 'pipeline', 'jobs', 'ls'),
-  'wiki.pipeline.tickets.ls': (a: Args) => wiki(a, 'pipeline', 'tickets', 'ls'),
+  'wiki.jobs.due': (a: Args) => wiki(a, 'jobs', 'due'),
+  // `--verbose` adds each job's due verdict, its tickets running here, its window and its routines.
+  'wiki.jobs.ls': (a: Args) => wiki(a, 'jobs', 'ls', '--verbose'),
+  'wiki.jobs.show': (a: Args) => wiki(a, 'jobs', 'show', jobSlug(a.slug)),
+  'wiki.tickets.ls': (a: Args) => wiki(a, 'tickets', 'ls'),
   'wiki.op.since': (a: Args) => wiki(a, 'op', 'since', since(a.since, '1d')),
   'wiki.op.logs': (a: Args) => wiki(a, 'op', 'logs', limit(a.limit, 50)),
   'wiki.git.changed': (a: Args) =>

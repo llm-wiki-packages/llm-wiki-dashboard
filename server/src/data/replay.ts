@@ -98,9 +98,9 @@ export function replayViews(d: ReplayDeps) {
 
   function planOf(rec: DayRecord, at: string): PlanItem[] {
     return rec.runs.map<PlanItem>((r) => {
-      if (r.end <= at) return { time: r.end, bundle: r.op, text: runText(r), status: r.outcome === 'ok' ? 'done' : 'failed', machine: r.machine }
-      if (r.start <= at) return { time: r.start, bundle: r.op, text: runText(r), status: 'running', machine: r.machine }
-      return { time: r.start, bundle: r.op, text: runText(r), status: 'upcoming', machine: r.machine }
+      if (r.end <= at) return { time: r.end, job: r.op, text: runText(r), status: r.outcome === 'ok' ? 'done' : 'failed', machine: r.machine }
+      if (r.start <= at) return { time: r.start, job: r.op, text: runText(r), status: 'running', machine: r.machine }
+      return { time: r.start, job: r.op, text: runText(r), status: 'upcoming', machine: r.machine }
     }).sort((a, b) => a.time.localeCompare(b.time))
   }
 
@@ -235,6 +235,8 @@ export function replayViews(d: ReplayDeps) {
         },
         attention: attentionOf(l, at),
         plan: planOf(l.rec, at),
+        // Job states are the CLI's now, not the replayed instant's.
+        jobs: [],
       }
     },
   }

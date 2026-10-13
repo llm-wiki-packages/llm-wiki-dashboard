@@ -17,6 +17,8 @@ import type {
   ChannelSummary,
   Counts,
   FleetView,
+  JobSummary,
+  JobView,
   Machine,
   NewItem,
   NewView,
@@ -154,15 +156,115 @@ const now: NowItem[] = [
 ]
 
 const plan: PlanItem[] = [
-  { time: at(2, 0), bundle: 'maintenance', text: 'Maintenance · doctor + reindex', status: 'done', machine: 'hetzner-01' },
-  { time: at(4, 0), bundle: 'improve', text: 'Improve pass · failed, retries tomorrow', status: 'failed', machine: THIS_MACHINE },
-  { time: at(7, 0), bundle: 'morning', text: 'Morning briefing · delivered', status: 'done', machine: THIS_MACHINE },
-  { time: at(16, 30), bundle: 'somecourse-pricing', text: 'somecourse.com · 3 lessons', status: 'done', machine: 'hetzner-01' },
-  { time: at(21, 2), bundle: 'hourly', text: 'Curate new pages · 22 runs today', status: 'running', machine: THIS_MACHINE },
-  { time: at(22, 0), bundle: 'nightly', text: 'Nightly dream · merges today into the wiki', status: 'upcoming', machine: THIS_MACHINE },
-  { time: at(22, 0), bundle: 'nightly-index', text: 'Rebuild search index', status: 'upcoming', machine: 'hetzner-01' },
-  { time: at(23, 0), bundle: 'hourly', text: 'Curate · last hourly run of the day', status: 'upcoming', machine: THIS_MACHINE },
+  { time: at(2, 0), job: 'ops-nightly-host', text: 'ops-nightly-host · reindex, then doctor', status: 'done', machine: 'hetzner-01' },
+  { time: at(4, 0), job: 'ops-nightly', text: 'ops-nightly · improve failed, retries tonight', status: 'failed', machine: THIS_MACHINE },
+  { time: at(7, 0), job: 'ops-morning', text: 'ops-morning · morning briefing delivered', status: 'done', machine: THIS_MACHINE },
+  { time: at(16, 30), job: 'somecourse-pricing', text: 'somecourse.com · 3 lessons', status: 'done', machine: 'hetzner-01' },
+  { time: at(21, 2), job: 'ops-hourly', text: 'ops-hourly · curate new pages · 22 runs today', status: 'running', machine: THIS_MACHINE },
+  { time: at(22, 0), job: 'ops-nightly', text: 'ops-nightly · dream, improve, wiki-report', status: 'upcoming', machine: THIS_MACHINE },
+  { time: at(22, 0), job: 'ops-hourly-host', text: 'ops-hourly-host · index, transcribe', status: 'upcoming', machine: 'hetzner-01' },
+  { time: at(23, 0), job: 'ops-hourly', text: 'ops-hourly · curate · last run of the day', status: 'upcoming', machine: THIS_MACHINE },
 ]
+
+/** The harvest unit each watch runs. */
+const unitOf: Record<string, string> = {
+  'gmail-clients': 'channel-gmail',
+  'notion-crm': 'channel-notion',
+  'youtube-saas-growth': 'channel-youtube',
+  'somecourse-pricing': 'channel-course',
+  'rival-pricing': 'web-page',
+  'rss-industry': 'channel-rss',
+  'hubspot-pages': 'web-page',
+  calendar: 'channel-calendar',
+}
+
+/** The CLI's stamp, to the second, the way a verdict's reasons quote it. */
+const stamp = (iso: string) => iso.replace(/\.\d{3}Z$/, 'Z')
+
+/** The seven `ops-` jobs a wiki ships with, as `jobs show` prints them, this one having resumed all but the synthesis starter;
+ *  `why` is each verdict's reasons in the CLI's words. */
+const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines' | 'why'>> = [
+  {
+    slug: 'ops-hourly-host', description: 'index and transcribe what this machine holds, every hour', kind: 'routines', claim: 'none', every: '1h', state: 'idle',
+    nextAt: at(22, 0), lastOk: at(21, 0), why: [`ran recently (last ok ${stamp(at(21, 0))}, every 1h)`],
+    skills: ['index', 'transcribe'], routines: [{ verb: 'op', name: 'index' }, { verb: 'op', name: 'transcribe' }],
+    details: [
+      'index is the everyday additive pass: it advances from a cursor and deletes only document ids it can name outright, which is what makes it safe on a partial or lagging clone. The full subtractive sweep is ops-nightly-host\'s reindex.',
+      "transcribe drains this machine's dropped files' queued stubs; a transcript it writes lands beside its media and routes the capture on to its next stage.",
+      'Every machine runs this job (claim none) and indexes and transcribes what it holds. It spends no credential and starts no model session.',
+    ],
+  },
+  {
+    slug: 'ops-nightly-host', description: 'rebuild the search index from the corpus, then check this wiki on this machine', kind: 'routines', claim: 'none', every: '1d', window: '02:00-06:00', state: 'idle',
+    nextAt: at(2, 0, 1), lastOk: at(2, 5), why: [`already ran in the current window occurrence (last ok ${stamp(at(2, 5))})`, 'outside preferred window 02:00-06:00 (already ran in the last one)'],
+    skills: ['reindex', 'doctor'], routines: [{ verb: 'op', name: 'reindex' }, { verb: 'op', name: 'doctor' }],
+    details: [
+      'reindex rebuilds the index from the corpus: the pass entitled to delete by subtraction. It is cheap when nothing changed, since the engine compares by content hash.',
+      "doctor closes the pass by saying what is wrong with this wiki on this machine, closed into the wiki's op history where a later reader finds it.",
+      "The window keeps the sweep after ops-nightly's 22:00 start rather than before it.",
+    ],
+  },
+  {
+    slug: 'ops-denials', description: "review this machine's denial rows and propose the fixes", kind: 'routines', claim: 'none', every: '1d', state: 'idle',
+    nextAt: at(20, 5, 1), lastOk: at(20, 5), why: [`ran recently (last ok ${stamp(at(20, 5))}, every 1d)`],
+    skills: ['llm-wiki:denials'], routines: [{ verb: 'skill', name: 'llm-wiki:denials' }],
+    details: [
+      "denials reads this machine's denial rows, every refusal a confined run met since the last review. It writes one message per subject to the improve inbox.",
+      'It is its own job, not a step of ops-nightly: the ops log is machine-local, and the review excludes its own slug\'s rows.',
+    ],
+  },
+  {
+    slug: 'ops-hourly', description: 'curate what the pipeline has landed, every hour', kind: 'routines', claim: 'any', every: '1h', state: 'running', note: `llm-wiki:curate on ${THIS_MACHINE}`, lastOk: at(20, 2), why: [`interval elapsed (last ok ${stamp(at(20, 2))})`],
+    skills: ['llm-wiki:curate'], routines: [{ verb: 'skill', name: 'llm-wiki:curate' }],
+    details: ['curate works on what the pipeline pass already landed; no job here starts a worker of its own.', 'A session that spends model time, so it ships paused: resume it to opt in. With nothing staged for curation the job is not due.'],
+  },
+  {
+    slug: 'ops-nightly', description: "dream, improve, report: the wiki's nightly sessions", kind: 'routines', claim: 'any', every: '1d', window: '22:00-06:00', state: 'idle', note: 'chain in progress (2 of 3)',
+    nextAt: at(22, 0), lastOk: at(22, 4, -1), why: ['chain in progress (2 of 3)', 'outside preferred window 22:00-06:00 (already ran in the last one)'],
+    skills: ['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'],
+    routines: [{ verb: 'skill', name: 'llm-wiki:dream' }, { verb: 'skill', name: 'llm-wiki:improve' }, { verb: 'skill', name: 'llm-wiki:wiki-report' }],
+    details: [
+      'dream drains the distill backlog, resolves contradictions and downgrades stale facts; it is the sole owner of distillation into wiki/.',
+      "improve runs after dream so it reads tonight's distillation.",
+      'wiki-report closes the night; it reads and never writes wiki/.',
+      'These are model sessions, so the job ships paused: resume it to opt in.',
+    ],
+  },
+  {
+    slug: 'ops-morning', description: "the morning briefing, once the night's work has landed", kind: 'routines', claim: 'any', every: '1d', state: 'idle',
+    nextAt: at(7, 0, 1), lastOk: at(7, 0), why: [`ran recently (last ok ${stamp(at(7, 0))}, every 1d)`],
+    skills: ['daily-report'], routines: [{ verb: 'skill', name: 'daily-report' }],
+    details: [
+      "The briefing runs the wiki's own daily-report skill once the night's dream has landed and the day's digest is written.",
+      'To change what it runs, copy this job to a new slug, point its routine at your skill and resume it. A slug is permanent, so a starter is copied, never renamed.',
+    ],
+  },
+  {
+    slug: 'ops-synthesize', description: "a starter for the wiki's own synthesis skill", kind: 'routines', claim: 'any', every: '1d', window: '18:00-21:00', state: 'paused', why: [],
+    skills: ['your-synthesis-skill'], routines: [{ verb: 'skill', name: 'your-synthesis-skill' }],
+    details: ['A starter, off until you finish it: write the wiki skill that does the synthesis, then copy this job to a new slug, point its routine at your skill and resume it.'],
+  },
+]
+
+/** Every job: the watches, then the `ops-` routines, the way the live source groups them. */
+function jobsNow(): JobSummary[] {
+  const watches = channels
+    .filter((c) => c.job)
+    .map<JobSummary>((c) => ({
+      slug: c.job as string,
+      description: c.name,
+      kind: 'pipeline',
+      claim: 'any',
+      machine: c.id === 'youtube-saas-growth' ? 'studio-mini' : undefined,
+      skills: [unitOf[c.job as string] ?? 'web-page'],
+      host: c.host,
+      every: c.every,
+      state: c.state,
+      note: c.stateNote,
+    }))
+    .sort((a, b) => a.slug.localeCompare(b.slug))
+  return [...watches, ...opsJobs.map(({ details: _d, routines: _r, why: _w, ...j }) => j).sort((a, b) => a.slug.localeCompare(b.slug))]
+}
 
 const machines: Machine[] = [
   { name: THIS_MACHINE, thisMachine: true, capabilities: ['harvest', 'index', 'process', 'transcribe'], lastSeen: at(21, 4), state: 'live', running: 1, leases: 3 },
@@ -196,7 +298,7 @@ Northwind and Contoso both opened renewal threads yesterday. Northwind wants the
 The pricing course revised its anchoring lesson, and the SaaS Growth episode on usage caps makes the same argument. Both were distilled into the [[Sales playbook › Packaging]] section overnight.
 
 ---
-*Written by the morning bundle from 47 pages captured since yesterday's report · 12 sources cited.*
+*Written by ops-morning from 47 pages captured since yesterday's report · 12 sources cited.*
 `
 
 const pagesByStem: Record<string, PageView> = {
@@ -207,9 +309,9 @@ const pagesByStem: Record<string, PageView> = {
 const stemOf = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
 
 const wikiList: WikiSummary[] = [
-  { key: 'acme-sales', name: 'Acme · Sales', path: '/Users/demo/wikis/acme-sales', pages: 3880, channels: 8, bundlesEnabled: 9, bundlesTotal: 10, health: 'attention', healthNote: '1 channel needs a credential', machines: 3, running: 2, lastRun: { op: 'hourly', outcome: 'ok', when: at(21, 2), actor: `agent@${THIS_MACHINE}`, summary: 'curate: 6 accepted, 0 rejected' }, nextDue: { bundle: 'nightly', at: at(22, 0) } },
-  { key: 'life', name: 'Life', path: '/Users/demo/wikis/life', pages: 1204, channels: 5, bundlesEnabled: 9, bundlesTotal: 10, health: 'ok', machines: 1, running: 0, lastRun: { op: 'hourly', outcome: 'ok', when: at(20, 50), actor: 'agent@studio-mini', summary: 'curate: nothing staged' }, nextDue: { bundle: 'nightly', at: at(22, 0) } },
-  { key: 'research', name: 'Research', path: '/Users/demo/wikis/research', pages: 640, channels: 2, bundlesEnabled: 6, bundlesTotal: 8, health: 'failing', healthNote: 'search engine unreachable · serving grep', machines: 2, running: 0, lastRun: { op: 'maintenance', outcome: 'failed', when: at(2, 0), actor: 'agent@hetzner-01', summary: 'reindex: engine unreachable' } },
+  { key: 'acme-sales', name: 'Acme · Sales', path: '/Users/demo/wikis/acme-sales', pages: 3880, channels: 8, jobsActive: 14, jobsTotal: 15, health: 'attention', healthNote: '1 channel needs a credential', machines: 3, running: 2, lastRun: { op: 'curate', outcome: 'ok', when: at(21, 2), actor: `agent@${THIS_MACHINE}`, summary: 'curate: 6 accepted, 0 rejected' }, nextDue: { job: 'ops-nightly', at: at(22, 0) } },
+  { key: 'life', name: 'Life', path: '/Users/demo/wikis/life', pages: 1204, channels: 5, jobsActive: 9, jobsTotal: 12, health: 'ok', machines: 1, running: 0, lastRun: { op: 'curate', outcome: 'ok', when: at(20, 50), actor: 'agent@studio-mini', summary: 'curate: nothing staged' }, nextDue: { job: 'ops-nightly', at: at(22, 0) } },
+  { key: 'research', name: 'Research', path: '/Users/demo/wikis/research', pages: 640, channels: 2, jobsActive: 4, jobsTotal: 9, health: 'failing', healthNote: 'search engine unreachable · serving grep', machines: 2, running: 0, lastRun: { op: 'reindex', outcome: 'failed', when: at(2, 0), actor: 'agent@hetzner-01', summary: 'reindex: engine unreachable' } },
 ]
 
 function wiki(key: string): WikiSummary {
@@ -278,7 +380,7 @@ function dayAt(replayAt: string) {
   const nowRows: NowItem[] = chans
     .filter((c) => c.state === 'running')
     .map((c) => ({ id: `ch-${c.id}`, what: `Capturing · ${c.name}`, who: c.name, machine: c.machine ?? '', stage: 'harvest', state: 'running', since: at, note: c.stateNote }))
-  for (const p of dayPlan) if (p.status === 'running') nowRows.unshift({ id: `run-${p.bundle}`, what: p.text, who: p.bundle, machine: p.machine ?? '', stage: p.bundle, state: 'running', since: p.time })
+  for (const p of dayPlan) if (p.status === 'running') nowRows.unshift({ id: `run-${p.job}`, what: p.text, who: p.job, machine: p.machine ?? '', stage: p.job, state: 'running', since: p.time })
   const a = areas(chans).filter((x) => x.count > 0 || x.channels.some((c) => c.state === 'running'))
   const c = sum(a.map((x) => x.counts))
   const runningBy = new Map<string, number>()
@@ -377,10 +479,11 @@ export function fixturesSource(): Source {
     health: { machinesSeen: 3, machinesTotal: 3, runsOk: 90, runsTotal: 91, attention: 1 },
     attention: mergeAttention(reportAttention, [hubspotFound('llm-wiki-cli wiki acme-sales credential set hubspot-api')], (a) => a.source ?? ''),
     plan,
+    jobs: jobsNow(),
   })
   return {
     kind: 'fixtures',
-    opsVersion: async () => '0.3.7',
+    opsVersion: async () => '0.7.0',
     roots: async (): Promise<WikiRoot[]> => wikiList.map(({ key, name, path }) => ({ key, name, path })),
     wikis: async () => wikiList,
     replayDays: async (key): Promise<ReplayDays> => {
@@ -410,7 +513,7 @@ export function fixturesSource(): Source {
           areas: d.areas,
           now: d.nowRows,
           plan: d.dayPlan,
-          attention: d.dayPlan.filter((p) => p.status === 'failed').map((p) => ({ id: `run-${p.bundle}`, title: p.text, detail: `on ${p.machine ?? 'a machine'}`, severity: 'failing' as const })),
+          attention: d.dayPlan.filter((p) => p.status === 'failed').map((p) => ({ id: `run-${p.job}`, title: p.text, detail: `on ${p.machine ?? 'a machine'}`, severity: 'failing' as const })),
           briefing: d.briefing,
         }
       }
@@ -442,9 +545,25 @@ export function fixturesSource(): Source {
         health: { machinesSeen: 3, machinesTotal: 3, runsOk: done.filter((p) => p.status === 'done').length, runsTotal: done.length, attention: d.chans.filter((c) => c.state === 'blocked').length },
         attention: [],
         plan: d.dayPlan,
+        jobs: [],
       }
     },
     briefings: async (key): Promise<BriefingsView> => ({ wiki: wiki(key), reports }),
+    job: async (key, slug): Promise<JobView | null> => {
+      wiki(key)
+      const j = jobsNow().find((x) => x.slug === slug)
+      if (!j) return null
+      const ops = opsJobs.find((x) => x.slug === slug)
+      return {
+        ...j,
+        details: ops?.details ?? [],
+        routines: ops?.routines ?? [],
+        why: ops?.why ?? [],
+        // A lease is held while a run or a chain is under way; a `none` job takes none, and says how each machine last ran it.
+        holder: j.claim !== 'none' && (j.state === 'running' || j.note?.startsWith('chain')) ? `held by ${j.machine ?? THIS_MACHINE} since ${at(21, 2)} (any)` : undefined,
+        machines: j.claim === 'none' ? machines.map((m) => ({ machine: m.name, lastRun: at(j.window ? 2 : 20, 5), outcome: 'ok' })) : undefined,
+      }
+    },
     briefing: async (key, id) => {
       wiki(key)
       const r = reports.find((x) => x.id === id)
