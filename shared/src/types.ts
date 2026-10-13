@@ -286,7 +286,7 @@ export interface FleetView {
   jobs: JobSummary[]
 }
 
-/** One declared job, as `jobs ls`, `jobs due` and `jobs show` answer it. */
+/** One declared job, as `jobs ls --verbose`, `jobs due` and `jobs show` answer it. */
 export interface JobSummary {
   slug: string
   /** The one-liner. */
@@ -302,9 +302,14 @@ export interface JobSummary {
   host?: string
   every?: string
   window?: string
-  /** `paused`, a chain part-way through and a first run waiting for its window are ordinary states, never faults. */
+  /** `paused`, a chain part-way through, a first run waiting for its window, a requirement not yet met and
+   *  nothing to do are ordinary states, never faults; `failed` is past the attempt cap. */
   state: ChannelSummary['state']
   note?: string
+  /** When the CLI's verdict says an active job that is neither due nor running next comes due on this machine. */
+  nextAt?: string
+  /** When its newest ok run started, by its claim: this machine's for a `none` job. */
+  lastOk?: string
 }
 
 /** One job in full, for its detail view: the record's own paragraphs and its routines in order. */
@@ -312,6 +317,8 @@ export interface JobView extends JobSummary {
   /** Paragraphs for the operator, after the one-line description. */
   details: string[]
   routines: Routine[]
+  /** Why it is or is not due, in the CLI's words: the unmet requirements where those hold it, else the reasons in order. */
+  why: string[]
   /** Who holds its claim now, in the CLI's words. */
   holder?: string
   /** A `claim: none` job runs on every machine: each one's last run and how it went. */

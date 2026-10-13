@@ -60,32 +60,47 @@ interface SearchStatus {
   realm_reason?: string
   corpus_files?: number
 }
+/** The routine entry a routine ticket runs, from the ticket's own copy: `index` counts from 0. */
+interface Step {
+  index: number
+  name: string
+}
 /** A ticket in `jobs due`'s queue lists: this machine's queues, so a running one runs here. */
 interface DueRow {
   id?: string
   job?: string
   stage?: string
   reason?: string
+  /** A running ticket's: the machine whose queue holds it, when it was claimed, and its routine step. */
+  machine?: string
+  started_at?: string | null
+  step?: Step | null
   /** Seconds since a running ticket was claimed; a pending group's oldest is `oldest_age_s`. */
   age_s?: number
   oldest_age_s?: number
-}
-/** `jobs due`'s `jobs` list: only the stages due here now, keyed by `slug`; a clock stage says why. */
-interface DueJob {
-  slug: string
-  stage?: string
-  due_since?: string | null
-  held_by?: string | null
-  reasons?: string[]
 }
 interface JobsDue {
   running?: DueRow[]
   pending?: DueRow[]
   review?: DueRow[]
   parked?: DueRow[]
-  jobs?: DueJob[]
   caps?: Record<string, { cap: number; active: number }>
 }
+/** The clock stage's verdict on this machine (`dueness.row`): why the job is or is not due, and when it next is.
+ *  `kind` is the first rung that said no, null when due; `next_at` is null when due and where only the next tick
+ *  knows (`requires`, `no-work`, `once`, `paused`, `off`). */
+interface Verdict {
+  due: boolean
+  kind: 'off' | 'paused' | 'once' | 'failed-cap' | 'period' | 'window' | 'requires' | 'no-work' | null
+  reasons: string[]
+  blocked_by: string[]
+  next_at: string | null
+  due_since: string | null
+  last_ok: string | null
+  anchor: string | null
+  chain: { done: number; of: number } | null
+}
+/** `jobs ls --verbose`: the bare row, plus each job's verdict, this machine's tickets of it, its window and its routines. */
 interface JobsLs {
   jobs: Array<{
     slug: string
@@ -99,7 +114,7 @@ interface JobsLs {
     target?: string | null
     dest?: string | null
     every?: string
-    /** A pipeline job's harvest unit; a routines job's first routine. The whole list is `jobs show`'s. */
+    /** A pipeline job's harvest unit; a routines job's first routine alone, so its steps are read off `routines`. */
     skill?: string | null
     state?: string
     /** Whether the job's clock stage is owed a run on this machine now. */
@@ -107,23 +122,29 @@ interface JobsLs {
     /** Every stage, lease and status: who holds it, and when its newest ok run started. */
     stages?: Array<{ stage: string; skipped?: boolean; holder?: string | null; stalled?: boolean; ok_started?: string | null }>
     blocked?: { reason?: string } | string | null
+    /** Absent on an archived row, which has no clock. */
+    verdict?: Verdict | null
+    running?: Running[]
+    window?: string | null
+    /** Each step in order, `[]` on a pipeline job. */
+    routines?: Routine[]
   }>
 }
 type Job = JobsLs['jobs'][number]
-/** A routine entry as the record writes it: exactly one of `skill`, `op` or `run`. */
-interface RoutineEntry {
-  skill?: string
-  op?: string
-  run?: string
-  args?: string[]
+/** A ticket of the job live on this machine: the queue is the machine's own, so `machine` is this one. */
+interface Running {
+  id: string
+  stage: string
+  machine?: string
+  since?: string | null
+  step?: Step | null
 }
-/** `jobs show <slug> --json`: the folded record whole, and who holds its claim. */
+/** `jobs show <slug> --json`: the folded record whole, who holds its claim, and the verdict and tickets `ls --verbose` carries. */
 interface JobsShow {
   job?: {
     slug: string
     details?: string[]
     window?: string | null
-    routines?: RoutineEntry[] | null
   } | null
   /** `any` and `sticky` name a holder; `none` lists every machine's last run instead. */
   claim?: {
@@ -131,6 +152,8 @@ interface JobsShow {
     holder?: { machine?: string; text?: string } | null
     machines?: Array<{ machine: string; last_run?: string | null; outcome?: string }>
   }
+  verdict?: Verdict | null
+  running?: Running[]
 }
 interface OpSince {
   runs: Array<{ op: string; outcome: string; summary?: string; when: string; actor?: string }>
@@ -204,48 +227,55 @@ export function whenOf(p: PageMeta): string {
   return p.harvested?.at ?? p.generated?.at ?? new Date().toISOString()
 }
 
-/** A job's record as `jobs show` folds it; absent where the show failed. */
-type JobRecord = NonNullable<JobsShow['job']>
-
 /** The stage a machine holds a live lease on, and so is running. */
 const heldOf = (j: Job) => j.stages?.find((s) => s.holder && !s.stalled)
+
+/** A job the verdict brakes: past the attempt cap, it waits on its period or for `tickets retry`. */
+const failing = (j: Job) => j.verdict?.kind === 'failed-cap'
 
 function stateOfJob(j: Job, due: JobsDue): ChannelSummary['state'] {
   if (j.state === 'paused') return 'paused'
   if (j.blocked && (typeof j.blocked === 'string' || j.blocked.reason)) return 'blocked'
-  const slug = j.slug
-  if (heldOf(j) || due.running?.some((r) => r.job === slug)) return 'running'
-  if (due.parked?.some((r) => r.job === slug)) return 'parked'
+  if (heldOf(j) || j.running?.length) return 'running'
+  if (due.parked?.some((r) => r.job === j.slug)) return 'parked'
+  if (failing(j)) return 'failed'
   return 'idle'
+}
+
+/** A routine ticket's step, by name and place: `llm-wiki:improve (2 of 3)`. */
+function stepText(j: Job, step: Step): string {
+  const of = j.routines?.length ?? 0
+  return of > 1 ? `${step.name} (${step.index + 1} of ${of})` : step.name
 }
 
 function noteOfJob(j: Job, due: JobsDue): string | undefined {
   if (j.blocked) return typeof j.blocked === 'string' ? j.blocked : j.blocked.reason
   const parked = due.parked?.find((r) => r.job === j.slug)
   if (parked) return parked.reason ?? 'parked'
+  const ticket = j.running?.[0]
+  if (ticket) return `${ticket.step ? stepText(j, ticket.step) : ticket.stage} on ${ticket.machine ?? 'this machine'}`
   const held = heldOf(j)
   if (held) return `${held.stage} on ${held.holder}`
-  const running = due.running?.find((r) => r.job === j.slug)
-  if (running) return running.stage ? `${running.stage} here` : 'running'
   return undefined
 }
 
-/** When the job's newest ok run started, on its clock stage: harvest for a pipeline, routine for a routines job. */
-function lastOk(j: Job): string | undefined {
-  const clock = j.kind === 'routines' ? 'routine' : 'harvest'
-  return j.stages?.find((s) => s.stage === clock)?.ok_started ?? undefined
+/** Why an active job is waiting, in the verdict's own words, when the waiting is a state: a chain part-way
+ *  through, a first run waiting for its window, a requirement not yet met, nothing to do, or the attempt cap. */
+function waitOf(j: Job): string | undefined {
+  const v = j.verdict
+  if (j.state !== 'active' || !v) return undefined
+  if (v.chain) return `chain in progress (${v.chain.done} of ${v.chain.of})`
+  if (v.kind === 'window' && !v.last_ok) return v.reasons.find((x) => x.startsWith('never run —')) ?? (j.window ? `never run — waits for the ${j.window} window` : undefined)
+  if (v.kind === 'requires') return v.blocked_by.length > 1 ? `${v.blocked_by[0]} (and ${v.blocked_by.length - 1} more)` : v.blocked_by[0] ?? v.reasons.at(-1)
+  if (v.kind === 'no-work') return v.reasons.at(-1)
+  if (v.kind === 'failed-cap') return v.reasons.find((x) => x.startsWith('failed')) ?? 'failed past the attempt cap'
+  return undefined
 }
 
-/** A chain part-way through is a state, not a fault: `jobs due` says how far it has got. */
-const CHAIN = /^chain in progress \(\d+ of \d+\)$/
-
-/** Why an active job is waiting, when the waiting is a state: a chain part-way through, or a first run waiting for its window. */
-function waitOf(j: Job, row?: DueJob, rec?: JobRecord): string | undefined {
-  const chain = row?.reasons?.find((x) => CHAIN.test(x))
-  if (chain) return chain
-  // The CLI's own words for a windowed job that has never run (dueness: "missed" needs an occurrence it was due in).
-  if (j.state === 'active' && !j.due && rec?.window && !lastOk(j)) return `never run — waits for the ${rec.window} window`
-  return undefined
+/** When an active job that is neither due nor running next comes due: the verdict's `next_at`, null where only the next tick knows. */
+function comesDue(j: Job): string | undefined {
+  if (j.state !== 'active' || heldOf(j) || j.running?.length) return undefined
+  return j.verdict?.next_at ?? undefined
 }
 
 function sinceMidnight(): string {
@@ -259,93 +289,36 @@ function hoursSinceMidnight(): Since {
   return `${h}h` as Since
 }
 
-function windowStart(window?: string | null): string | undefined {
-  const m = /^(\d{2}):(\d{2})/.exec(window ?? '')
-  if (!m) return undefined
-  const d = new Date()
-  d.setHours(Number(m[1]), Number(m[2]), 0, 0)
-  return d.toISOString()
-}
-
-/** When `window` next opens: today's start if it is still ahead, else tomorrow's. */
-function windowOpens(window?: string | null): string | undefined {
-  const start = windowStart(window)
-  if (!start) return undefined
-  return Date.parse(start) > Date.now() ? start : new Date(Date.parse(start) + 86_400_000).toISOString()
-}
-
-const PERIOD_MS: Record<string, number> = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 }
-
-/** `6h` in milliseconds; none for `once` or a cadence the CLI's own grammar would not read. */
-function periodMs(every?: string): number | undefined {
-  const m = /^(\d+)([smhdw])$/.exec(every ?? '')
-  return m ? Number(m[1]) * PERIOD_MS[m[2]!]! : undefined
-}
-
-/** When an active job that is neither due nor running comes due: its window's next opening, else its period after its last ok run.
- *  A `d` or `w` cadence with a window counts whole occurrences, so a window opening is the earliest it can run. */
-function comesDue(j: Job, rec?: JobRecord): string | undefined {
-  if (j.state !== 'active' || j.due || heldOf(j)) return undefined
-  if (rec?.window) return windowOpens(rec.window)
-  const last = lastOk(j)
-  const period = periodMs(j.every)
-  if (!last || !period) return undefined
-  const at = Date.parse(last) + period
-  return at > Date.now() ? new Date(at).toISOString() : undefined
-}
-
-/** How long a job's record is held, and how many `jobs show` run at once to read them. */
-const RECORD_MS = 60_000
-const SHOW_AT_ONCE = 4
-
-/** Run `fn` over `items`, at most `n` at a time. */
-async function eachLimited<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
-  const queue = [...items]
-  await Promise.all(Array.from({ length: Math.min(n, queue.length) }, async () => {
-    for (let item = queue.shift(); item !== undefined; item = queue.shift()) await fn(item)
-  }))
-}
-
 /** The skill that writes the wiki's report; the job that runs it writes the briefings. */
 const REPORT_SKILL = 'llm-wiki:wiki-report'
 
-/** A routine entry as a step: exactly one of a skill, a host op or a unit's script. */
-function routineOf(e: RoutineEntry): Routine | undefined {
-  const args = e.args?.length ? { args: e.args } : {}
-  if (e.skill) return { verb: 'skill', name: e.skill, ...args }
-  if (e.op) return { verb: 'op', name: e.op }
-  if (e.run) return { verb: 'run', name: e.run, ...args }
-  return undefined
-}
+/** A routines job's steps in order, each a skill, a host op or a unit's script; `args` only where it is handed some. */
+const stepsOf = (j: Job): Routine[] => (j.routines ?? []).map(({ verb, name, args }) => ({ verb, name, ...(args?.length ? { args } : {}) }))
 
-const routinesOf = (rec?: JobRecord): Routine[] => (rec?.routines ?? []).map(routineOf).filter((r): r is Routine => r !== undefined)
-
-/** What a job runs: a routines job's steps in order (its first alone when the record could not be read), a pipeline's harvest unit. */
-function skillsOf(j: Job, rec?: JobRecord): string[] {
-  const steps = j.kind === 'routines' ? routinesOf(rec).map((r) => r.name) : []
-  return steps.length ? steps : j.skill ? [j.skill] : []
+/** What a job runs: a routines job's steps in order, a pipeline's harvest unit. */
+function skillsOf(j: Job): string[] {
+  if (j.kind === 'routines') return stepsOf(j).map((r) => r.name)
+  return j.skill ? [j.skill] : []
 }
 
 /** Every declared job with its state: pipelines first, then routines, each by slug. */
-function jobsOf(js: JobsLs, d: JobsDue, recs: Map<string, JobRecord>): JobSummary[] {
-  const rows = new Map((d.jobs ?? []).map((r) => [r.slug, r]))
+function jobsOf(js: JobsLs, d: JobsDue): JobSummary[] {
   return js.jobs
-    .map<JobSummary>((j) => {
-      const rec = recs.get(j.slug)
-      return {
-        slug: j.slug,
-        description: j.description ?? '',
-        kind: j.kind === 'routines' ? 'routines' : 'pipeline',
-        claim: j.claim,
-        machine: j.machine ?? undefined,
-        skills: skillsOf(j, rec),
-        host: hostOf(j.target),
-        every: j.every,
-        window: rec?.window ?? undefined,
-        state: stateOfJob(j, d),
-        note: noteOfJob(j, d) ?? waitOf(j, rows.get(j.slug), rec),
-      }
-    })
+    .map<JobSummary>((j) => ({
+      slug: j.slug,
+      description: j.description ?? '',
+      kind: j.kind === 'routines' ? 'routines' : 'pipeline',
+      claim: j.claim,
+      machine: j.machine ?? undefined,
+      skills: skillsOf(j),
+      host: hostOf(j.target),
+      every: j.every,
+      window: j.window ?? undefined,
+      state: stateOfJob(j, d),
+      note: noteOfJob(j, d) ?? waitOf(j),
+      nextAt: comesDue(j),
+      lastOk: j.verdict?.last_ok ?? undefined,
+    }))
     .sort((a, b) => a.kind.localeCompare(b.kind) || a.slug.localeCompare(b.slug))
 }
 
@@ -436,22 +409,6 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     memo(`due:${wiki}`, () => soft(cli.run<JobsDue>('wiki.jobs.due', { wiki }), {}))
   const jobs = (wiki: string) =>
     memo(`jobs:${wiki}`, () => soft(cli.run<JobsLs>('wiki.jobs.ls', { wiki }), { jobs: [] }))
-  /** Each job's folded record, for its window and its routines, which `jobs ls` does not carry. One `jobs show`
-   *  per job, a few at a time and held for `RECORD_MS`: a record changes when someone edits it, not every poll. */
-  const records = (wiki: string) =>
-    memo(
-      `records:${wiki}`,
-      async () => {
-        const js = await jobs(wiki)
-        const recs = new Map<string, JobRecord>()
-        await eachLimited(js.jobs, SHOW_AT_ONCE, async (j) => {
-          const rec = (await soft(cli.run<JobsShow>('wiki.jobs.show', { wiki, slug: j.slug }), {})).job
-          if (rec) recs.set(j.slug, rec)
-        })
-        return recs
-      },
-      RECORD_MS,
-    )
   const runs = (wiki: string, since: Since) =>
     memo(`runs:${wiki}:${since}`, () => soft(cli.run<OpSince>('wiki.op.since', { wiki, since }), { runs: [] }))
   const changed = (wiki: string, since: Since) =>
@@ -462,13 +419,12 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     })
 
   async function summary(r: WikiRoot): Promise<WikiSummary> {
-    const [st, se, d, js, rn, recs] = await Promise.all([
+    const [st, se, d, js, rn] = await Promise.all([
       soft(status(r.key), { machine: '' } as Status),
       search(r.key),
       due(r.key),
       jobs(r.key),
       runs(r.key, '1d'),
-      records(r.key),
     ])
     const running = d.running?.length ?? 0
     const machines = new Set((st.peers ?? []).map((p) => p.machine))
@@ -494,7 +450,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     // The next job to come due: the earliest among those not due now.
     let next: { job: string; at: string } | undefined
     for (const j of js.jobs) {
-      const at = comesDue(j, recs.get(j.slug))
+      const at = comesDue(j)
       if (at && (!next || at < next.at)) next = { job: j.slug, at }
     }
     return {
@@ -519,8 +475,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
   /** Channels: every pipeline job, plus one per source the pages name; a routines job watches no source.
    *  `discover` widens where the pages came from (a month of history) without widening what is counted (today). */
   async function channelsOf(wiki: string, pages: PageMeta[], discover: PageMeta[] = pages): Promise<ChannelSummary[]> {
-    const [js, d, recs] = await Promise.all([jobs(wiki), due(wiki), records(wiki)])
-    const rows = new Map((d.jobs ?? []).map((r) => [r.slug, r]))
+    const [js, d] = await Promise.all([jobs(wiki), due(wiki)])
     const byId = new Map<string, ChannelSummary>()
     for (const j of js.jobs) {
       if (j.kind === 'routines') continue
@@ -534,7 +489,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         machine: j.machine ?? undefined,
         watched: true,
         state: stateOfJob(j, d),
-        stateNote: noteOfJob(j, d) ?? waitOf(j, rows.get(j.slug), recs.get(j.slug)),
+        stateNote: noteOfJob(j, d) ?? waitOf(j),
         counts: emptyCounts(),
       })
     }
@@ -587,15 +542,15 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     return [...byArea.values()].sort((a, b) => b.count - a.count)
   }
 
-  /** When a queue row's ticket was claimed or queued, from its age. */
+  /** When a queue row's ticket was queued, from its age. */
   const ago = (s?: number) => new Date(Date.now() - (s ?? 0) * 1000).toISOString()
 
-  /** The queues `jobs due` lists are this machine's own, so every row is on `here`. */
+  /** The queues `jobs due` lists are this machine's own, so every row is on `here`; a running one names it and its step. */
   function nowOf(d: JobsDue, channels: ChannelSummary[], here: string): NowItem[] {
     const name = (slug?: string) => channels.find((c) => c.id === slug)?.name ?? slug ?? 'a channel'
     const rows: NowItem[] = []
     for (const r of d.running ?? [])
-      rows.push({ id: r.id ?? `${r.job}-${r.stage}`, what: `${cap(r.stage ?? 'working')} · ${name(r.job)}`, who: name(r.job), machine: here, stage: r.stage ?? '', state: 'running', since: ago(r.age_s) })
+      rows.push({ id: r.id ?? `${r.job}-${r.stage}`, what: `${r.step ? r.step.name : cap(r.stage ?? 'working')} · ${name(r.job)}`, who: name(r.job), machine: r.machine ?? here, stage: r.stage ?? '', state: 'running', since: r.started_at ?? ago(r.age_s) })
     for (const r of d.parked ?? [])
       rows.push({ id: r.id ?? `${r.job}-parked`, what: `${name(r.job)} parked`, who: name(r.job), machine: here, stage: r.stage ?? '', state: 'parked', since: ago(), note: r.reason })
     for (const r of d.pending ?? [])
@@ -603,7 +558,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     return rows
   }
 
-  function planOf(js: JobsLs, rn: OpSince, d: JobsDue, recs: Map<string, JobRecord>, here: string): PlanItem[] {
+  function planOf(js: JobsLs, rn: OpSince, d: JobsDue, here: string): PlanItem[] {
     const today = sinceMidnight()
     const tomorrow = new Date(Date.parse(today) + 86_400_000).toISOString()
     const items: PlanItem[] = []
@@ -611,17 +566,16 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       if (r.when < today) continue
       items.push({ time: r.when, job: r.op, text: r.summary ? `${r.op} · ${r.summary}` : r.op, status: r.outcome === 'ok' ? 'done' : 'failed', machine: r.actor?.split('@')[1] })
     }
-    for (const r of d.running ?? []) items.push({ time: ago(r.age_s), job: r.job ?? 'a job', text: `${r.job ?? 'a job'} · ${r.stage ?? 'running'}`, status: 'running', machine: here })
-    // Scheduled: every active job due now and not yet running, and every one that comes due later today.
+    for (const r of d.running ?? [])
+      items.push({ time: r.started_at ?? ago(r.age_s), job: r.job ?? 'a job', text: `${r.job ?? 'a job'} · ${r.step?.name ?? r.stage ?? 'running'}`, status: 'running', machine: r.machine ?? here })
+    // Scheduled: every active job due now and not yet running, and every one the verdict says comes due by tomorrow.
     // A chain part-way through is due; it reads as how far it has got, never as a fault.
     const running = new Set((d.running ?? []).map((r) => r.job))
-    const rows = new Map((d.jobs ?? []).map((r) => [r.slug, r]))
     for (const j of js.jobs) {
-      if (j.state !== 'active' || running.has(j.slug) || heldOf(j)) continue
-      const rec = recs.get(j.slug)
-      const at = j.due ? '' : comesDue(j, rec)
+      if (j.state !== 'active' || running.has(j.slug) || heldOf(j) || j.running?.length) continue
+      const at = j.due ? '' : comesDue(j)
       if (at === undefined || at >= tomorrow) continue
-      const text = [j.slug, skillsOf(j, rec).join(', '), waitOf(j, rows.get(j.slug), rec) ?? (j.every && `every ${j.every}`)].filter(Boolean).join(' · ')
+      const text = [j.slug, skillsOf(j).join(', '), waitOf(j) ?? (j.every && `every ${j.every}`)].filter(Boolean).join(' · ')
       items.push({ time: at, job: j.slug, text, status: 'upcoming' })
     }
     return items.sort((a, b) => (a.time || '9').localeCompare(b.time || '9'))
@@ -779,14 +733,13 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       if (at) return replay.today(key, at)
       const r = await root(key)
       const since = hoursSinceMidnight()
-      const [w, pages, d, js, rn, se, recs, st] = await Promise.all([
+      const [w, pages, d, js, rn, se, st] = await Promise.all([
         summary(r),
         changed(key, since),
         due(key),
         jobs(key),
         runs(key, since),
         search(key),
-        records(key),
         soft(status(key), { machine: '' } as Status),
       ])
       const channels = await channelsOf(key, pages)
@@ -808,7 +761,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         lede,
         areas,
         now: nowOf(d, channels, st.machine),
-        plan: planOf(js, rn, d, recs, st.machine),
+        plan: planOf(js, rn, d, st.machine),
         attention,
         briefing: todays,
       }
@@ -840,7 +793,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
       if (at) return replay.fleet(key, at)
       const r = await root(key)
       const since = hoursSinceMidnight()
-      const [w, st, d, js, rn, pages, se, recs] = await Promise.all([
+      const [w, st, d, js, rn, pages, se] = await Promise.all([
         summary(r),
         soft(status(key), { machine: '' } as Status),
         due(key),
@@ -848,15 +801,19 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
         runs(key, since),
         changed(key, since),
         search(key),
-        records(key),
       ])
       // A wiki with no jobs and a quiet day still has a history worth drawing.
       const discover = js.jobs.length || pages.length ? pages : await changed(key, '30d')
       const channels = await channelsOf(key, pages, discover)
-      // Who is running what: the live leases `jobs ls` names, on any machine.
+      // Who is running what: the live leases `jobs ls` names, on any machine, and this machine's own tickets,
+      // since a stage the tick claims and a `none` job take no lease. A job counts once on each machine.
       const runningBy = new Map<string, number>()
-      for (const j of js.jobs)
-        for (const x of j.stages ?? []) if (x.holder && !x.stalled) runningBy.set(x.holder, (runningBy.get(x.holder) ?? 0) + 1)
+      for (const j of js.jobs) {
+        const on = new Set<string>()
+        for (const x of j.stages ?? []) if (x.holder && !x.stalled) on.add(x.holder)
+        for (const t of j.running ?? []) on.add(t.machine ?? st.machine)
+        for (const m of on) runningBy.set(m, (runningBy.get(m) ?? 0) + 1)
+      }
       const machines = machinesOf(st, runningBy)
       const todayRuns = rn.runs.filter((x) => x.when >= sinceMidnight())
       return {
@@ -871,34 +828,36 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
           attention: channels.filter((c) => c.state === 'blocked' || c.state === 'failed').length,
         },
         attention: mergeAttention((await todaysReport(key))?.read.attention ?? [], attentionOf(w, channels, se), (a) => a.source ?? ''),
-        plan: planOf(js, rn, d, recs, st.machine),
-        jobs: jobsOf(js, d, recs),
+        plan: planOf(js, rn, d, st.machine),
+        jobs: jobsOf(js, d),
       }
     },
     briefings: async (key): Promise<BriefingsView> => {
       const r = await root(key)
-      const [w, reports, js, recs] = await Promise.all([summary(r), briefingList(key), jobs(key), records(key)])
+      const [w, reports, js] = await Promise.all([summary(r), briefingList(key), jobs(key)])
       // The job that writes reports: the one whose routines include the wiki report, an active one first.
       // A fresh wiki ships it paused, which is a state to say, not a fault.
-      const writes = js.jobs.filter((j) => j.kind === 'routines' && skillsOf(j, recs.get(j.slug)).includes(REPORT_SKILL))
+      const writes = js.jobs.filter((j) => j.kind === 'routines' && skillsOf(j).includes(REPORT_SKILL))
       const j = writes.find((x) => x.state === 'active') ?? writes[0]
       if (!j) return { wiki: w, reports }
       if (j.state !== 'active') return { wiki: w, reports, next: { job: j.slug, every: j.every, paused: true } }
-      return { wiki: w, reports, next: { job: j.slug, at: comesDue(j, recs.get(j.slug)), every: j.every } }
+      return { wiki: w, reports, next: { job: j.slug, at: comesDue(j), every: j.every } }
     },
     job: async (key, slug): Promise<JobView | null> => {
       await root(key)
       const js = await jobs(key)
       const j = js.jobs.find((x) => x.slug === slug)
       if (!j) return null
-      // Read fresh, not from the held records: opening a job is where someone looks after editing it.
+      // The verdict and tickets read fresh, not from the held list: opening a job is where someone looks after editing it.
       const [d, shown] = await Promise.all([due(key), cli.run<JobsShow>('wiki.jobs.show', { wiki: key, slug })])
-      const rec = shown.job ?? undefined
-      const [summary] = jobsOf({ jobs: [j] }, d, new Map(rec ? [[slug, rec]] : []))
+      const fresh: Job = { ...j, window: shown.job?.window ?? j.window, verdict: shown.verdict ?? j.verdict, running: shown.running ?? j.running }
+      const [summary] = jobsOf({ jobs: [fresh] }, d)
+      const v = fresh.verdict
       return {
         ...summary!,
-        details: rec?.details ?? [],
-        routines: routinesOf(rec),
+        details: shown.job?.details ?? [],
+        routines: stepsOf(fresh),
+        why: v && v.kind !== 'paused' ? (v.blocked_by.length ? v.blocked_by : v.reasons) : [],
         holder: shown.claim?.holder?.text,
         machines: shown.claim?.machines?.map((m) => ({ machine: m.machine, lastRun: m.last_run ?? undefined, outcome: m.outcome })),
       }

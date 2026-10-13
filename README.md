@@ -120,7 +120,10 @@ Node 24 or later, and the llm-wiki ops distribution on the machine
 `min_ops_version` in `llm-wiki-package.json` or later: the build that answers
 `jobs ls`, `jobs due`, `jobs show` and `tickets ls` as groups of their own,
 with the reshaped job record (`kind`, `claim`, `machine`, and a routines job's
-steps, each a skill, an op or a script, printed by `jobs show`). An older build
-answers none of those verbs.
+steps, each a skill, an op or a script), and each job's due verdict: why it is
+or is not due on this machine, when it next is, and the tickets running here
+(`jobs ls --verbose` and `jobs show`). The dashboard derives no dueness of its
+own. An older build refuses `--verbose`, and one before 0.7.0 answers none of
+those verbs.
 
-<!-- TODO: confirm min_ops_version in llm-wiki-package.json once the merger assigns the version batch that consumes simple10/llm-wiki-plugins's pending intents job-record-reshape (#3233), 3231-jobs-grammar (#3238) and 3248-unit-manifest-routine-entries (#3254). Ops is 0.6.0 on main with those intents pending, and a batch is one bump, minor here, so 0.7.0 is expected but not yet assigned. The manifest's key set is closed, so the TODO lives here. -->
+<!-- TODO: confirm min_ops_version in llm-wiki-package.json once the merger assigns the version batch that consumes simple10/llm-wiki-plugins's pending intent 3295-jobs-verdict (#3301). Ops is 0.7.0 on main and the intent is minor, so 0.8.0 is expected but not yet assigned. The manifest's key set is closed, so the TODO lives here. -->

@@ -27,7 +27,7 @@ describe('VERBS', () => {
 
   it('spells jobs and tickets as groups of their own, under the read floor', () => {
     expect(cli.VERBS['wiki.jobs.due']({ wiki: 'kb' })).toEqual(['wiki', '--read-only', 'kb', 'jobs', 'due', '--json'])
-    expect(cli.VERBS['wiki.jobs.ls']({ wiki: 'kb' })).toEqual(['wiki', '--read-only', 'kb', 'jobs', 'ls', '--json'])
+    expect(cli.VERBS['wiki.jobs.ls']({ wiki: 'kb' })).toEqual(['wiki', '--read-only', 'kb', 'jobs', 'ls', '--verbose', '--json'])
     expect(cli.VERBS['wiki.tickets.ls']({ wiki: 'kb' })).toEqual(['wiki', '--read-only', 'kb', 'tickets', 'ls', '--json'])
   })
 

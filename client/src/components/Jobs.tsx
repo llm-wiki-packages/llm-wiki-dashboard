@@ -1,8 +1,9 @@
 // Every declared job, grouped by kind: a pipeline pulls a source through the
 // capture stages, a routines job runs its steps in order. Each row says how many
 // machines run it, where it is pinned, and what it is doing; opening one reads
-// the record's own paragraphs. Paused, a chain part-way through and a first
-// run waiting for its window are states, said quietly, never warnings.
+// the record's own paragraphs and the CLI's reasons. Paused, a chain part-way
+// through, a first run waiting for its window, a requirement not yet met and
+// nothing to do are states, said quietly, never warnings.
 
 import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
@@ -28,6 +29,12 @@ function stateOf(j: JobSummary): { text: string; tone: string } {
   if (j.state === 'parked') return { text: j.note ?? 'parked', tone: 'text-ink-2' }
   if (j.state === 'paused') return { text: 'paused', tone: 'text-ink-3' }
   return { text: j.note ?? '', tone: 'text-ink-2' }
+}
+
+/** When the verdict says it next runs here: a failing job's next try, any other's next run. */
+function nextOf(j: JobSummary): string {
+  if (!j.nextAt || (j.state !== 'idle' && j.state !== 'failed')) return ''
+  return `${j.state === 'failed' ? 'retries' : 'next'} ${timeAgo(j.nextAt)}`
 }
 
 export function Jobs({ wikiKey, jobs }: { wikiKey: string; jobs: JobSummary[] }) {
@@ -57,6 +64,7 @@ export function Jobs({ wikiKey, jobs }: { wikiKey: string; jobs: JobSummary[] })
 
 function JobRow({ wikiKey, job: j, open, onToggle }: { wikiKey: string; job: JobSummary; open: boolean; onToggle: () => void }) {
   const state = stateOf(j)
+  const next = nextOf(j)
   const cadence = [j.every && `every ${j.every}`, j.window && `window ${j.window}`].filter(Boolean).join(' · ')
   return (
     <div className="border-t border-line/60">
@@ -70,6 +78,7 @@ function JobRow({ wikiKey, job: j, open, onToggle }: { wikiKey: string; job: Job
           <span className="truncate text-xs text-ink-2">
             {[j.kind === 'routines' ? j.skills.join(' → ') : j.host ?? j.skills[0], cadence].filter(Boolean).join(' · ')}
             {state.text && <span className={state.tone}> · {state.text}</span>}
+            {next && <span> · {next}</span>}
           </span>
         </span>
         <span className="flex flex-wrap justify-end gap-1">
@@ -107,9 +116,24 @@ function JobDetail({ wikiKey, slug }: { wikiKey: string; slug: string }) {
           ))}
         </ol>
       )}
+      <Why job={j} />
       {j.holder && <div className="text-xs text-ink-2">{j.holder}</div>}
       <Machines rows={j.machines} />
-      {!j.details.length && !j.routines.length && !j.holder && !j.machines?.length && <div className="text-xs text-ink-2">The record says nothing more.</div>}
+      {!j.details.length && !j.routines.length && !j.why.length && !j.holder && !j.machines?.length && <div className="text-xs text-ink-2">The record says nothing more.</div>}
+    </div>
+  )
+}
+
+/** Why it is or is not due on this machine, in the CLI's words, with its last ok run and its next. */
+function Why({ job: j }: { job: JobView }) {
+  if (!j.why.length && !j.lastOk && !j.nextAt) return null
+  const when = [j.lastOk && `last ok ${timeAgo(j.lastOk)}`, nextOf(j)].filter(Boolean).join(' · ')
+  return (
+    <div className="flex flex-col gap-0.5 text-xs text-ink-2">
+      {j.why.map((w, i) => (
+        <span key={i}>{w}</span>
+      ))}
+      {when && <span>{when}</span>}
     </div>
   )
 }

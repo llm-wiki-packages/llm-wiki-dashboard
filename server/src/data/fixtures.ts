@@ -178,10 +178,15 @@ const unitOf: Record<string, string> = {
   calendar: 'channel-calendar',
 }
 
-/** The seven `ops-` jobs a wiki ships with, as `jobs show` prints them, this one having resumed all but the synthesis starter. */
-const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines'>> = [
+/** The CLI's stamp, to the second, the way a verdict's reasons quote it. */
+const stamp = (iso: string) => iso.replace(/\.\d{3}Z$/, 'Z')
+
+/** The seven `ops-` jobs a wiki ships with, as `jobs show` prints them, this one having resumed all but the synthesis starter;
+ *  `why` is each verdict's reasons in the CLI's words. */
+const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines' | 'why'>> = [
   {
     slug: 'ops-hourly-host', description: 'index and transcribe what this machine holds, every hour', kind: 'routines', claim: 'none', every: '1h', state: 'idle',
+    nextAt: at(22, 0), lastOk: at(21, 0), why: [`ran recently (last ok ${stamp(at(21, 0))}, every 1h)`],
     skills: ['index', 'transcribe'], routines: [{ verb: 'op', name: 'index' }, { verb: 'op', name: 'transcribe' }],
     details: [
       'index is the everyday additive pass: it advances from a cursor and deletes only document ids it can name outright, which is what makes it safe on a partial or lagging clone. The full subtractive sweep is ops-nightly-host\'s reindex.',
@@ -191,6 +196,7 @@ const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines'>> = [
   },
   {
     slug: 'ops-nightly-host', description: 'rebuild the search index from the corpus, then check this wiki on this machine', kind: 'routines', claim: 'none', every: '1d', window: '02:00-06:00', state: 'idle',
+    nextAt: at(2, 0, 1), lastOk: at(2, 5), why: [`already ran in the current window occurrence (last ok ${stamp(at(2, 5))})`, 'outside preferred window 02:00-06:00 (already ran in the last one)'],
     skills: ['reindex', 'doctor'], routines: [{ verb: 'op', name: 'reindex' }, { verb: 'op', name: 'doctor' }],
     details: [
       'reindex rebuilds the index from the corpus: the pass entitled to delete by subtraction. It is cheap when nothing changed, since the engine compares by content hash.',
@@ -200,6 +206,7 @@ const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines'>> = [
   },
   {
     slug: 'ops-denials', description: "review this machine's denial rows and propose the fixes", kind: 'routines', claim: 'none', every: '1d', state: 'idle',
+    nextAt: at(20, 5, 1), lastOk: at(20, 5), why: [`ran recently (last ok ${stamp(at(20, 5))}, every 1d)`],
     skills: ['llm-wiki:denials'], routines: [{ verb: 'skill', name: 'llm-wiki:denials' }],
     details: [
       "denials reads this machine's denial rows, every refusal a confined run met since the last review. It writes one message per subject to the improve inbox.",
@@ -207,12 +214,13 @@ const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines'>> = [
     ],
   },
   {
-    slug: 'ops-hourly', description: 'curate what the pipeline has landed, every hour', kind: 'routines', claim: 'any', every: '1h', state: 'running', note: `routine on ${THIS_MACHINE}`,
+    slug: 'ops-hourly', description: 'curate what the pipeline has landed, every hour', kind: 'routines', claim: 'any', every: '1h', state: 'running', note: `llm-wiki:curate on ${THIS_MACHINE}`, lastOk: at(20, 2), why: [`interval elapsed (last ok ${stamp(at(20, 2))})`],
     skills: ['llm-wiki:curate'], routines: [{ verb: 'skill', name: 'llm-wiki:curate' }],
     details: ['curate works on what the pipeline pass already landed; no job here starts a worker of its own.', 'A session that spends model time, so it ships paused: resume it to opt in. With nothing staged for curation the job is not due.'],
   },
   {
     slug: 'ops-nightly', description: "dream, improve, report: the wiki's nightly sessions", kind: 'routines', claim: 'any', every: '1d', window: '22:00-06:00', state: 'idle', note: 'chain in progress (2 of 3)',
+    nextAt: at(22, 0), lastOk: at(22, 4, -1), why: ['chain in progress (2 of 3)', 'outside preferred window 22:00-06:00 (already ran in the last one)'],
     skills: ['llm-wiki:dream', 'llm-wiki:improve', 'llm-wiki:wiki-report'],
     routines: [{ verb: 'skill', name: 'llm-wiki:dream' }, { verb: 'skill', name: 'llm-wiki:improve' }, { verb: 'skill', name: 'llm-wiki:wiki-report' }],
     details: [
@@ -224,6 +232,7 @@ const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines'>> = [
   },
   {
     slug: 'ops-morning', description: "the morning briefing, once the night's work has landed", kind: 'routines', claim: 'any', every: '1d', state: 'idle',
+    nextAt: at(7, 0, 1), lastOk: at(7, 0), why: [`ran recently (last ok ${stamp(at(7, 0))}, every 1d)`],
     skills: ['daily-report'], routines: [{ verb: 'skill', name: 'daily-report' }],
     details: [
       "The briefing runs the wiki's own daily-report skill once the night's dream has landed and the day's digest is written.",
@@ -231,7 +240,7 @@ const opsJobs: Array<JobSummary & Pick<JobView, 'details' | 'routines'>> = [
     ],
   },
   {
-    slug: 'ops-synthesize', description: "a starter for the wiki's own synthesis skill", kind: 'routines', claim: 'any', every: '1d', window: '18:00-21:00', state: 'paused',
+    slug: 'ops-synthesize', description: "a starter for the wiki's own synthesis skill", kind: 'routines', claim: 'any', every: '1d', window: '18:00-21:00', state: 'paused', why: [],
     skills: ['your-synthesis-skill'], routines: [{ verb: 'skill', name: 'your-synthesis-skill' }],
     details: ['A starter, off until you finish it: write the wiki skill that does the synthesis, then copy this job to a new slug, point its routine at your skill and resume it.'],
   },
@@ -254,7 +263,7 @@ function jobsNow(): JobSummary[] {
       note: c.stateNote,
     }))
     .sort((a, b) => a.slug.localeCompare(b.slug))
-  return [...watches, ...opsJobs.map(({ details: _d, routines: _r, ...j }) => j).sort((a, b) => a.slug.localeCompare(b.slug))]
+  return [...watches, ...opsJobs.map(({ details: _d, routines: _r, why: _w, ...j }) => j).sort((a, b) => a.slug.localeCompare(b.slug))]
 }
 
 const machines: Machine[] = [
@@ -549,6 +558,7 @@ export function fixturesSource(): Source {
         ...j,
         details: ops?.details ?? [],
         routines: ops?.routines ?? [],
+        why: ops?.why ?? [],
         // A lease is held while a run or a chain is under way; a `none` job takes none, and says how each machine last ran it.
         holder: j.claim !== 'none' && (j.state === 'running' || j.note?.startsWith('chain')) ? `held by ${j.machine ?? THIS_MACHINE} since ${at(21, 2)} (any)` : undefined,
         machines: j.claim === 'none' ? machines.map((m) => ({ machine: m.name, lastRun: at(j.window ? 2 : 20, 5), outcome: 'ok' })) : undefined,

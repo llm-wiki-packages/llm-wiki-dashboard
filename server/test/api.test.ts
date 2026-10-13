@@ -73,10 +73,12 @@ describe('jobs', () => {
     expect(ops.find((j) => j.slug === 'ops-synthesize')?.state).toBe('paused')
     expect(view.attention.some((a) => /ops-/.test(`${a.title} ${a.source ?? ''}`))).toBe(false)
   })
-  it("opens a job's details and routines, 404s an unknown one and refuses a slug that is not one", async () => {
+  it("opens a job's details, routines and reasons, 404s an unknown one and refuses a slug that is not one", async () => {
     const res = await app.request('/api/wikis/acme-sales/jobs/ops-nightly', { headers })
     const job = (await res.json()) as JobView
     expect(job.details).toHaveLength(4)
+    expect(job.why[0]).toBe('chain in progress (2 of 3)')
+    expect(job.nextAt).toBeTruthy()
     expect(job.routines.map((r) => `${r.verb} ${r.name}`)).toEqual(['skill llm-wiki:dream', 'skill llm-wiki:improve', 'skill llm-wiki:wiki-report'])
     const host = (await (await app.request('/api/wikis/acme-sales/jobs/ops-hourly-host', { headers })).json()) as JobView
     expect(host.routines.map((r) => r.verb)).toEqual(['op', 'op'])

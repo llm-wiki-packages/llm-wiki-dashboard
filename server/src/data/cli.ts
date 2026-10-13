@@ -154,7 +154,8 @@ export const VERBS = {
   'wiki.status': (a: Args) => wiki(a, 'status', '--peers'),
   'wiki.search.status': (a: Args) => wiki(a, 'search', 'status'),
   'wiki.jobs.due': (a: Args) => wiki(a, 'jobs', 'due'),
-  'wiki.jobs.ls': (a: Args) => wiki(a, 'jobs', 'ls'),
+  // `--verbose` adds each job's due verdict, its tickets running here, its window and its routines.
+  'wiki.jobs.ls': (a: Args) => wiki(a, 'jobs', 'ls', '--verbose'),
   'wiki.jobs.show': (a: Args) => wiki(a, 'jobs', 'show', jobSlug(a.slug)),
   'wiki.tickets.ls': (a: Args) => wiki(a, 'tickets', 'ls'),
   'wiki.op.since': (a: Args) => wiki(a, 'op', 'since', since(a.since, '1d')),
