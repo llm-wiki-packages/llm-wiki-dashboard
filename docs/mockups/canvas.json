@@ -17,10 +17,10 @@
   "launch": {"view": "canvas"},
   "notes": {
     "t0": {"kind": "title1", "maxW": 6000, "text": "Direction E · Executive view — light, warm, attention-first", "x": 0, "y": -1590},
-    "s0": {"fill": "orange", "w": 420, "x": 6080, "y": -1320, "text": "Direction E replaces A as the main direction. Today is the landing page; What's new, Fleet and Briefings are its three drill-downs and share the nav. Every count still maps to a CLI verb: git changed + page ls for what's new, pipeline due + tickets ls for right now, schedule ls for the plan, op since for what ran, and the daily-report page for the briefing. Grouping by area/tag comes from page frontmatter; grouping by channel from the watch name."},
+    "s0": {"fill": "orange", "w": 420, "x": 6080, "y": -1320, "text": "Direction E replaces A as the main direction. Today is the landing page; What's new, Fleet and Briefings are its three drill-downs and share the nav. Every count still maps to a CLI verb: git changed + page list for what's new, pipeline due + tickets list for right now, schedule list for the plan, op since for what ran, and the daily-report page for the briefing. Grouping by area/tag comes from page frontmatter; grouping by channel from the watch name."},
     "s1": {
       "fill": "gray",
-      "text": "Every field on these boards maps to a shipped CLI verb with --json: machine wikis ls, status --peers, pipeline due, pipeline jobs ls, pipeline tickets ls/show, schedule ls, op since, op logs, search status. Live feel comes from tailing the per-day trace jsonl; the REPLAY toggle replays a recorded stream at 10–50x for demos. Data on the boards is illustrative; the dev box today has one wiki, one machine and no jobs.",
+      "text": "Every field on these boards maps to a shipped CLI verb with --json: machine wikis list, status --peers, pipeline due, pipeline jobs list, pipeline tickets list/show, schedule list, op since, op logs, search status. Live feel comes from tailing the per-day trace jsonl; the REPLAY toggle replays a recorded stream at 10–50x for demos. Data on the boards is illustrative; the dev box today has one wiki, one machine and no jobs.",
       "w": 420,
       "x": 3040,
       "y": 1020

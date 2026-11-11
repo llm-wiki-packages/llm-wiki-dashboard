@@ -141,14 +141,14 @@ const wiki = (a: Args, ...rest: string[]) => ['wiki', '--read-only', key(a.wiki)
 
 export const VERBS = {
   'machine.version': () => ['machine', 'version', '--json'],
-  'machine.wikis.ls': () => ['machine', 'wikis', 'ls', '--json'],
-  'machine.runner.ls': () => ['machine', 'runner', 'ls', '--json'],
+  'machine.wikis.list': () => ['machine', 'wikis', 'list', '--json'],
+  'machine.runner.list': () => ['machine', 'runner', 'list', '--json'],
   'wiki.status': (a: Args) => wiki(a, 'status', '--peers'),
   'wiki.search.status': (a: Args) => wiki(a, 'search', 'status'),
-  'wiki.schedule.ls': (a: Args) => wiki(a, 'schedule', 'ls'),
+  'wiki.schedule.list': (a: Args) => wiki(a, 'schedule', 'list'),
   'wiki.pipeline.due': (a: Args) => wiki(a, 'pipeline', 'due'),
-  'wiki.pipeline.jobs.ls': (a: Args) => wiki(a, 'pipeline', 'jobs', 'ls'),
-  'wiki.pipeline.tickets.ls': (a: Args) => wiki(a, 'pipeline', 'tickets', 'ls'),
+  'wiki.pipeline.jobs.list': (a: Args) => wiki(a, 'pipeline', 'jobs', 'list'),
+  'wiki.pipeline.tickets.list': (a: Args) => wiki(a, 'pipeline', 'tickets', 'list'),
   'wiki.op.since': (a: Args) => wiki(a, 'op', 'since', since(a.since, '1d')),
   'wiki.op.logs': (a: Args) => wiki(a, 'op', 'logs', limit(a.limit, 50)),
   'wiki.git.changed': (a: Args) =>
@@ -161,8 +161,8 @@ export const VERBS = {
     'wiki', '--read-only', key(a.wiki), 'search', 'query', ...searchFilters(a), '--json', '--', text(a.text),
   ],
   'wiki.whereami': (a: Args) => wiki(a, 'whereami'),
-  'wiki.sandboxes.ls': (a: Args) => wiki(a, 'sandboxes', 'ls'),
-  'wiki.agents.ls': (a: Args) => wiki(a, 'agents', 'ls', '--enabled'),
+  'wiki.sandboxes.list': (a: Args) => wiki(a, 'sandboxes', 'list'),
+  'wiki.agents.list': (a: Args) => wiki(a, 'agents', 'list', '--enabled'),
   // One question in a jailed harness session, streamed as JSON lines. The one
   // verb without the read floor (see the top of this file). Values are
   // `key=value`; model and effort are passed only when chosen, so the harness

@@ -42,7 +42,7 @@ import type { Timeline } from './timeline.js'
 
 // ---- CLI answer shapes (only the keys read here) ----------------------------
 
-interface WikisLs {
+interface WikisList {
   wikis: Array<{ key: string; name: string; path: string }>
 }
 export interface Status {
@@ -58,7 +58,7 @@ interface SearchStatus {
   realm_reason?: string
   corpus_files?: number
 }
-interface ScheduleLs {
+interface ScheduleList {
   bundles: Array<{ name: string; enabled: boolean; every?: string; window?: string | null; stages?: string[]; error?: string | null }>
 }
 interface DueRow {
@@ -82,7 +82,7 @@ interface PipelineDue {
   jobs?: DueRow[]
   caps?: Record<string, { cap: number; active: number }>
 }
-interface JobsLs {
+interface JobsList {
   jobs: Array<{
     slug: string
     target?: string
@@ -169,7 +169,7 @@ export function whenOf(p: PageMeta): string {
   return p.harvested?.at ?? p.generated?.at ?? new Date().toISOString()
 }
 
-function stateOfJob(j: JobsLs['jobs'][number], due: PipelineDue): ChannelSummary['state'] {
+function stateOfJob(j: JobsList['jobs'][number], due: PipelineDue): ChannelSummary['state'] {
   if (j.paused || j.state === 'paused') return 'paused'
   if (j.blocked && (typeof j.blocked === 'string' || j.blocked.reason)) return 'blocked'
   const slug = j.slug
@@ -178,7 +178,7 @@ function stateOfJob(j: JobsLs['jobs'][number], due: PipelineDue): ChannelSummary
   return 'idle'
 }
 
-function noteOfJob(j: JobsLs['jobs'][number], due: PipelineDue): string | undefined {
+function noteOfJob(j: JobsList['jobs'][number], due: PipelineDue): string | undefined {
   if (j.blocked) return typeof j.blocked === 'string' ? j.blocked : j.blocked.reason
   const parked = due.parked?.find((r) => r.job === j.slug)
   if (parked) return parked.reason ?? (parked.not_before ? `retry after ${parked.not_before}` : 'parked')
@@ -240,12 +240,12 @@ export function refusal(errorKey: string, message: string, wiki: string): Error 
 interface Whereami {
   sandbox?: { jail?: string }
 }
-/** `sandboxes ls --json`. */
-interface SandboxesLs {
+/** `sandboxes list --json`. */
+interface SandboxesList {
   sandboxes: Array<{ name: string; enabled: boolean }>
 }
-/** `agents ls --enabled --json`. */
-interface AgentsLs {
+/** `agents list --enabled --json`. */
+interface AgentsList {
   agents: Array<{ name: string; enabled?: boolean }>
 }
 
@@ -276,7 +276,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
 
   const roots = () =>
     memo('roots', async (): Promise<WikiRoot[]> => {
-      const ans = await cli.run<WikisLs>('machine.wikis.ls')
+      const ans = await cli.run<WikisList>('machine.wikis.list')
       return ans.wikis.map(({ key, name, path }) => ({ key, name, path }))
     })
 
@@ -290,11 +290,11 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
   const search = (wiki: string) =>
     memo(`search:${wiki}`, () => soft(cli.run<SearchStatus>('wiki.search.status', { wiki }), {}))
   const schedule = (wiki: string) =>
-    memo(`schedule:${wiki}`, () => soft(cli.run<ScheduleLs>('wiki.schedule.ls', { wiki }), { bundles: [] }))
+    memo(`schedule:${wiki}`, () => soft(cli.run<ScheduleList>('wiki.schedule.list', { wiki }), { bundles: [] }))
   const due = (wiki: string) =>
     memo(`due:${wiki}`, () => soft(cli.run<PipelineDue>('wiki.pipeline.due', { wiki }), {}))
   const jobs = (wiki: string) =>
-    memo(`jobs:${wiki}`, () => soft(cli.run<JobsLs>('wiki.pipeline.jobs.ls', { wiki }), { jobs: [] }))
+    memo(`jobs:${wiki}`, () => soft(cli.run<JobsList>('wiki.pipeline.jobs.list', { wiki }), { jobs: [] }))
   const runs = (wiki: string, since: Since) =>
     memo(`runs:${wiki}:${since}`, () => soft(cli.run<OpSince>('wiki.op.since', { wiki, since }), { runs: [] }))
   const changed = (wiki: string, since: Since) =>
@@ -435,7 +435,7 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
     return rows
   }
 
-  function planOf(sc: ScheduleLs, rn: OpSince, d: PipelineDue): PlanItem[] {
+  function planOf(sc: ScheduleList, rn: OpSince, d: PipelineDue): PlanItem[] {
     const today = sinceMidnight()
     const items: PlanItem[] = []
     const ranToday = new Set<string>()
@@ -818,8 +818,8 @@ export function liveSource(cli: Runner, timeline: Timeline): Source {
           await root(key)
           const [where, boxes, agents] = await Promise.all([
             cli.run<Whereami>('wiki.whereami', { wiki: key }),
-            cli.run<SandboxesLs>('wiki.sandboxes.ls', { wiki: key }),
-            soft(cli.run<AgentsLs>('wiki.agents.ls', { wiki: key }), { agents: [] }),
+            cli.run<SandboxesList>('wiki.sandboxes.list', { wiki: key }),
+            soft(cli.run<AgentsList>('wiki.agents.list', { wiki: key }), { agents: [] }),
           ])
           const names = agents.agents.filter((a) => a.enabled !== false).map((a) => a.name)
           const off = (u: Unsupported): AskStatus => ({ available: false, reason: u.message, fix: u.fix, agents: names })

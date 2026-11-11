@@ -23,13 +23,13 @@ small nodes joined to them. A machine joined to two wikis has two edges.
 This machine is highlighted. Live work pulses along the wiki↔machine edge.
 
 Per wiki node:
-- name, key                                (`machine wikis ls`)
+- name, key                                (`machine wikis list`)
 - pages in corpus (e.g. 103)               (`search status`.corpus_files)
-- sources watched (jobs count)             (`pipeline jobs ls`.count)
+- sources watched (jobs count)             (`pipeline jobs list`.count)
 - bundles enabled / total (9/10)           (`status`.schedules)
 - search state: engine | grep fallback     (`search status`.serving)
 - last run: op, outcome, when              (`op since`.runs[0])
-- next due                                 (`schedule ls`)
+- next due                                 (`schedule list`)
 - health dot: ok / attention / failing     (`doctor`)
 - git: unpushed, behind, dirty             (`status`.git)
 
@@ -67,13 +67,13 @@ joined to this wiki. Bars are bundle runs: name (hourly, nightly, morning,
 improve, maintenance, denials, wiki-report, nightly-index), duration,
 outcome color. Running bars pulse at the right edge. Bundle windows
 (e.g. nightly 22:00–06:00) are faint bands behind the lane.
-Data: `op since`, `schedule ls`, `pipeline tickets ls`.
+Data: `op since`, `schedule list`, `pipeline tickets list`.
 
 ### Side panel drill-down (slides in from the right)
 - Job card: target, source host, dest, every, skill, state holders per
   stage, blocked reason. (`pipeline jobs show`)
 - Ticket list: stage, state, attempts, not_before, machine.
-  (`pipeline tickets ls`)
+  (`pipeline tickets list`)
 - Ticket record: everything it carries incl. the egress its slice was
   minted with — sandbox name + allowed hosts. Show this; it is the security
   story. (`pipeline tickets show`)
@@ -103,7 +103,7 @@ Data: `op since`, `schedule ls`, `pipeline tickets ls`.
 
 ## Real JSON shapes (from this machine, 2026-09-27, wiki `knowledgebase`)
 ```json
-// machine wikis ls
+// machine wikis list
 {"count":1,"wikis":[{"key":"knowledgebase","name":"llm-wiki-knowledgebase","path":"/Users/joe/Development/ai-tools/llm-wiki-knowledgebase"}]}
 // status --peers (trimmed)
 {"name":"llm-wiki-knowledgebase","key":"knowledgebase","machine":"jmac23-3-local","ops_version":"0.3.7",
@@ -114,7 +114,7 @@ Data: `op since`, `schedule ls`, `pipeline tickets ls`.
 {"running":[],"pending":[],"review":[],"parked":[],"jobs":[],
  "caps":{"harvest":{"cap":1,"active":0},"transcribe":{"cap":1,"active":0},"enrich":{"cap":2,"active":0},"process":{"cap":2,"active":0},"handoff":{"cap":1,"active":0}},
  "handoffs":{"outgoing":[],"incoming":[],"shipping":[],"problems":[]}}
-// schedule ls (one bundle)
+// schedule list (one bundle)
 {"name":"nightly","enabled":true,"every":"1d","window":"22:00-06:00","stages":["/llm-wiki:dream"],"sandbox":"wiki-write","error":null}
 // op since filter=since:7d (one run)
 {"op":"grill","outcome":"ok","summary":"grill setup: CLAUDE.md purpose/scope section, grill overlay","when":"2026-09-26T14:53:38-07:00","actor":"agent@jmac23-3-local","session":"ccc0abd3-…"}
