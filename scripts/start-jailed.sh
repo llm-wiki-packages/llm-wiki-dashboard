@@ -63,7 +63,7 @@ for f in "$HOME/.gitconfig" "${XDG_CONFIG_HOME:-$HOME/.config}/git"; do
 done
 
 # One read grant per wiki, plus a write grant on its runtime tree.
-WIKIS=$("$CLI" machine wikis ls --json | node -e '
+WIKIS=$("$CLI" machine wikis list --json | node -e '
   let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
     for (const w of JSON.parse(s).wikis) console.log(w.path)
   })')

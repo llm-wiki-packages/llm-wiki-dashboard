@@ -5,7 +5,7 @@
 // - `FAKE_CLI_FAIL=1` answers the way the real CLI does on an unknown verb:
 //   nothing on stdout, click's usage and error on stderr, rc 2.
 //   `FAKE_CLI_FAIL=<verb>` does that for one verb only, like `harness`.
-// - `machine wikis ls`, `whereami`, `sandboxes ls` and `agents ls` answer in
+// - `machine wikis list`, `whereami`, `sandboxes list` and `agents list` answer in
 //   the real shapes. `FAKE_CLI_JAIL` names the jail (default `none`),
 //   `FAKE_CLI_SANDBOXES` the enabled sandboxes (default `no-network,read-search`),
 //   `FAKE_CLI_TEMPLATES` the wiki's templates (default `harvest,no-network,read-search`),
@@ -30,15 +30,15 @@ if (env.FAKE_CLI_FAIL === '1' || env.FAKE_CLI_FAIL === verb[0]) {
   process.exit(2)
 }
 
-if (is('machine', 'wikis', 'ls')) {
+if (is('machine', 'wikis', 'list')) {
   out({ wikis: [{ key: 'kb', name: 'KB', path: env.FAKE_CLI_WIKI_PATH ?? '/tmp/fake-kb' }] })
 } else if (is('whereami')) {
   out({ wiki: '/tmp/fake-kb', sandbox: { jail: env.FAKE_CLI_JAIL ?? 'none' } })
-} else if (is('sandboxes', 'ls')) {
+} else if (is('sandboxes', 'list')) {
   const on = (env.FAKE_CLI_SANDBOXES ?? 'no-network,read-search').split(',').filter(Boolean)
   const all = (env.FAKE_CLI_TEMPLATES ?? 'harvest,no-network,read-search').split(',')
   out({ sandboxes: all.map((name) => ({ name, enabled: on.includes(name) })) })
-} else if (is('agents', 'ls')) {
+} else if (is('agents', 'list')) {
   out({ agents: (env.FAKE_CLI_AGENTS ?? '').split(',').filter(Boolean).map((name) => ({ name, enabled: true })) })
 } else if (argv.includes('--stream') && env.FAKE_CLI_REFUSE) {
   const [error, ...rest] = env.FAKE_CLI_REFUSE.split(':')

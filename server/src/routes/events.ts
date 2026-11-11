@@ -15,7 +15,7 @@ function viewsTouched(argv: string[]): ViewName[] {
   const [a, b] = argv
   if (a === 'pipeline') return ['today', 'new', 'fleet']
   if (a === 'schedule' || a === 'op') return ['today', 'fleet', 'briefings']
-  if (a === 'page' && b !== 'read' && b !== 'ls') return ['today', 'new', 'briefings']
+  if (a === 'page' && b !== 'read' && b !== 'list') return ['today', 'new', 'briefings']
   if (a === 'git' && b !== 'log' && b !== 'changed') return ['today', 'new']
   return []
 }
